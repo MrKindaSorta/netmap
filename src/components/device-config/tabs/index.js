@@ -1,0 +1,10 @@
+export { default as BasicConfigTab } from './BasicConfigTab';
+export { default as VlanConfigTab } from './VlanConfigTab';
+export { default as DhcpConfigTab } from './DhcpConfigTab';
+export { default as SsidConfigTab } from './SsidConfigTab';
+export { default as VoipConfigTab } from './VoipConfigTab';
+export { default as AdvancedConfigTab } from './AdvancedConfigTab';
+export { default as HardwareConfigTab } from './HardwareConfigTab';
+export { default as LocationConfigTab } from './LocationConfigTab';
+export { default as AssetConfigTab } from './AssetConfigTab';
+export { default as MonitoringConfigTab } from './MonitoringConfigTab';
