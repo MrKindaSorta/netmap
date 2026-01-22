@@ -27,7 +27,7 @@ const BulkEditModal = ({ selectedDeviceIds, devices, buildings, vlans, onClose, 
   // Define all fields that can be edited
   const allFields = useMemo(() => [
     // Basic
-    'status', 'buildingId', 'floor', 'locked',
+    'status', 'type', 'buildingId', 'floor', 'locked',
     // Hardware
     'hardware.manufacturer', 'hardware.model', 'hardware.serialNumber',
     'hardware.firmware.version', 'hardware.firmware.lastUpdated',

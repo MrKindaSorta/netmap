@@ -87,6 +87,17 @@ export const DEVICE_CAPABILITIES = {
     hideVlanConfig: true,
     requiresVoip: true
   },
+  'voip-controller': {
+    layer: 3,
+    canManageVlans: true,
+    canRunDhcp: true,
+    hasAdvancedConfig: true,
+    supportedFeatures: ['sip-trunk', 'extension-management', 'call-routing'],
+    isMonitorable: true,
+    maxConnections: 1000,
+    typicalPorts: [5060, 5061],
+    powerDraw: 50
+  },
   cloud: {
     layer: null,
     canManageVlans: false,
@@ -132,7 +143,7 @@ export const getAvailableTabs = (device) => {
   if (caps.requiresVoip) tabs.push('voip');
 
   // Monitoring tab - available for network devices and servers
-  const monitorableTypes = ['router', 'firewall', 'core', 'switch', 'ap', 'server', 'wan'];
+  const monitorableTypes = ['router', 'firewall', 'core', 'switch', 'ap', 'server', 'voip-controller', 'wan'];
   if (monitorableTypes.includes(device.type)) {
     tabs.push('monitoring');
   }

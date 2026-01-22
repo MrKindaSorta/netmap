@@ -344,6 +344,35 @@ const NetworkTopologyEditor = () => {
         // Apply physical updates
         merged = { ...merged, ...physicalUpdates };
 
+        // Special handling: type change - initialize type-specific configs
+        if (cleanUpdates.type) {
+          const newType = cleanUpdates.type;
+
+          // Initialize type-specific configs if missing
+          if (newType === 'phone' && !merged.voipConfig) {
+            merged.voipConfig = {
+              sipServer: '',
+              sipPort: 5060,
+              extension: '',
+              codec: 'G.711',
+              qosEnabled: true
+            };
+          }
+
+          if (newType === 'ap' && !merged.ssidConfig) {
+            merged.ssidConfig = {
+              ssids: []
+            };
+          }
+
+          if ((newType === 'router' || newType === 'firewall' || newType === 'core') && !merged.dhcpConfig) {
+            merged.dhcpConfig = {
+              enabled: false,
+              pools: []
+            };
+          }
+        }
+
         // Special handling: notes append mode
         if (notesMode === 'append' && cleanUpdates.notes) {
           const existingNotes = device.notes || '';

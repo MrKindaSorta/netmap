@@ -1,5 +1,6 @@
 import React from 'react';
 import { BulkDropdownField } from '../bulk-edit-fields';
+import { deviceTypes } from '../../../constants/deviceTypes';
 
 /**
  * Basic Info Tab - Contains original bulk edit properties
@@ -22,6 +23,9 @@ const BulkBasicTab = ({
     { value: 'warning', label: 'Warning' },
     { value: 'unknown', label: 'Unknown' }
   ];
+
+  // Get device type options
+  const typeOptions = deviceTypes.map(t => ({ value: t.value, label: t.label }));
 
   // Get building options
   const buildingOptions = [
@@ -60,6 +64,36 @@ const BulkBasicTab = ({
         options={statusOptions}
         placeholder="Select status..."
       />
+
+      {/* Device Type */}
+      <BulkDropdownField
+        fieldPath="type"
+        label="Device Type"
+        enabled={enabledFields['type'] || false}
+        value={fieldValues['type']}
+        conflict={conflicts['type']}
+        onEnabledChange={onEnabledChange}
+        onValueChange={onValueChange}
+        theme={theme}
+        validation={validations['type']}
+        options={typeOptions}
+        placeholder="Select device type..."
+      />
+
+      {/* Info message when type is enabled */}
+      {enabledFields['type'] && (
+        <div
+          className="ml-6 text-xs p-2 rounded"
+          style={{
+            background: '#3b82f620',
+            color: theme.text,
+            border: '1px solid #3b82f640'
+          }}
+        >
+          ℹ️ Changing device type will initialize default configuration for the new type.
+          Device-specific settings (VoIP, WiFi, DHCP) may need to be configured individually.
+        </div>
+      )}
 
       {/* Building Assignment */}
       <BulkDropdownField

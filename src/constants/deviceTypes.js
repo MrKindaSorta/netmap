@@ -10,6 +10,7 @@ export const deviceTypes = [
   { value: 'printer', label: 'Printer', icon: 'M6 9V4a1 1 0 011-1h10a1 1 0 011 1v5M4 9h16v8a1 1 0 01-1 1h-2v-4H7v4H5a1 1 0 01-1-1V9z' },
   { value: 'camera', label: 'Camera', icon: 'M12 12m-8 0a8 8 0 1016 0 8 8 0 10-16 0M12 12m-3 0a3 3 0 106 0' },
   { value: 'phone', label: 'VoIP Phone', icon: 'M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2zM12 17h.01' },
+  { value: 'voip-controller', label: 'VoIP Controller', icon: 'M4 3h16v18H4zM4 9h16M4 15h16M12 6v0M12 12v0' },
   { value: 'cloud', label: 'Cloud', icon: 'M18 10a4 4 0 00-8 0 4 4 0 00-4 4 3 3 0 003 3h9a4 4 0 001-7z' },
   { value: 'wan', label: 'WAN Uplink', icon: 'M12 2L2 7v6c0 5 3 10 8 12 5-2 8-7 8-12V7l-10-5M12 12l-6 3 6-9v6' },
   { value: 'unknown', label: 'Unknown', icon: 'M12 12m-9 0a9 9 0 1018 0 9 9 0 10-18 0M12 8v4M12 16h.01' },
@@ -29,6 +30,7 @@ export const getDevColor = (d) => {
     printer: '#a855f7',
     camera: '#ec4899',
     phone: '#14b8a6',
+    'voip-controller': '#0891b2',
     cloud: '#6366f1',
     wan: '#16a34a',
     unknown: '#6b7280'
