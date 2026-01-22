@@ -399,6 +399,8 @@ export function validateMessage(message) {
   return { valid: true };
 }
 
+import { findExistingDevice } from './aiEditParser';
+
 /**
  * Handle AI tool calls for device suggestions
  * @param {Object} toolCall - Tool call from AI
@@ -412,19 +414,22 @@ export function handleAiToolCall(toolCall, devices, connections, buildings, vlan
   if (toolCall.name === 'suggest_device_addition') {
     const { device, suggestedPosition, connections: suggestedConnections, reasoning, confidence } = toolCall.input;
 
-    // Validate device doesn't already exist
-    const existingByName = Object.values(devices).find(
-      d => d.name.toLowerCase() === device.name.toLowerCase()
-    );
-    const existingByIp = device.ip
-      ? Object.values(devices).find(d => d.ip === device.ip)
-      : null;
+    // Validate required fields
+    if (!device || !device.name || !device.type) {
+      return {
+        type: 'device_suggestion_error',
+        error: 'Invalid device: missing name or type',
+        deviceData: device
+      };
+    }
 
-    if (existingByName || existingByIp) {
+    // Validate device doesn't already exist
+    const existingDevice = findExistingDevice(device, devices);
+    if (existingDevice) {
       return {
         type: 'device_suggestion_duplicate',
-        error: `Device ${device.name} already exists`,
-        existingDevice: existingByName || existingByIp
+        error: `Device already exists: ${existingDevice.name}`,
+        existingDevice
       };
     }
 
@@ -459,10 +464,19 @@ export function handleAiToolCall(toolCall, devices, connections, buildings, vlan
     // Prepare connection data
     const connectionData = (suggestedConnections || [])
       .map(conn => {
+        if (!conn.toDeviceName) {
+          console.warn('Connection missing toDeviceName:', conn);
+          return null;
+        }
+
         const targetDevice = Object.values(devices).find(
           d => d.name === conn.toDeviceName
         );
-        if (!targetDevice) return null;
+
+        if (!targetDevice) {
+          console.warn(`Connection target not found: ${conn.toDeviceName}`);
+          return null;
+        }
 
         return {
           toDeviceId: targetDevice.id,
@@ -475,7 +489,7 @@ export function handleAiToolCall(toolCall, devices, connections, buildings, vlan
           cableType: conn.cableType || 'cat6'
         };
       })
-      .filter(Boolean);
+      .filter(Boolean); // Remove nulls
 
     return {
       type: 'device_suggestion',

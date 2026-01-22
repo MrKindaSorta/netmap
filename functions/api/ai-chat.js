@@ -146,9 +146,17 @@ When users paste network configuration outputs, logs, or device listings:
 
 ### Step 3: CRITICAL - Check Against Existing Devices
 BEFORE suggesting:
-1. Check if device name exists in network context
+1. Check if device name exists in network context (case-insensitive)
 2. Check if IP address exists in network context
-3. ONLY suggest devices NOT already in topology
+3. Check if MAC address exists in network context
+4. ONLY suggest devices NOT already in topology
+5. If multiple devices detected, suggest ALL valid ones in the SAME response
+
+IMPORTANT: When detecting multiple new devices, call suggest_device_addition
+for EACH device in the SAME response. The user will approve them as a batch.
+
+DO NOT re-suggest devices that appear in the network context, even if they
+were recently added from your previous suggestions.
 
 ### Step 4: Detect Connections
 From CDP/LLDP neighbors:

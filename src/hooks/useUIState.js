@@ -40,6 +40,7 @@ export const useUIState = () => {
   const [showConversationHistory, setShowConversationHistory] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [aiPendingChange, setAiPendingChange] = useState(null);
+  const [aiPendingDeviceBatch, setAiPendingDeviceBatch] = useState(null);
 
   // Helper functions
   const closeContextMenu = useCallback(() => {
@@ -80,6 +81,10 @@ export const useUIState = () => {
 
   const clearAiPendingChange = useCallback(() => {
     setAiPendingChange(null);
+  }, []);
+
+  const clearAiPendingDeviceBatch = useCallback(() => {
+    setAiPendingDeviceBatch(null);
   }, []);
 
   return {
@@ -140,7 +145,10 @@ export const useUIState = () => {
     setCurrentConversationId,
     aiPendingChange,
     setAiPendingChange,
-    clearAiPendingChange
+    clearAiPendingChange,
+    aiPendingDeviceBatch,
+    setAiPendingDeviceBatch,
+    clearAiPendingDeviceBatch
   };
 };
 

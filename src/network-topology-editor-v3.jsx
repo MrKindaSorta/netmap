@@ -219,6 +219,7 @@ const NetworkTopologyEditor = () => {
     showConversationHistory, setShowConversationHistory,
     currentConversationId, setCurrentConversationId,
     aiPendingChange, setAiPendingChange, clearAiPendingChange,
+    aiPendingDeviceBatch, setAiPendingDeviceBatch, clearAiPendingDeviceBatch,
     closeContextMenu,
     clearFilters
   } = uiState;
@@ -470,6 +471,11 @@ const NetworkTopologyEditor = () => {
 
       // Process tool calls
       if (toolCalls.length > 0) {
+        // Collect all valid suggestions
+        const validSuggestions = [];
+        const duplicates = [];
+        const errors = [];
+
         toolCalls.forEach(toolCall => {
           const result = handleAiToolCall(
             toolCall,
@@ -487,16 +493,45 @@ const NetworkTopologyEditor = () => {
               devices,
               buildings
             );
-
-            // Update suggestion data with smart position
             result.data.suggestedPosition = smartPosition;
+            validSuggestions.push(result.data);
 
-            // Add device suggestion message
-            addAiMessage('device_suggestion', response.text || 'I detected a device that could be added to your network:', result.data);
           } else if (result.type === 'device_suggestion_duplicate') {
-            addAiMessage('assistant', `That device already exists: ${result.existingDevice.name}`);
+            duplicates.push(result.existingDevice.name);
+
+          } else if (result.type === 'device_suggestion_error') {
+            errors.push(result.error);
+            console.error('Device suggestion error:', result.error, result.deviceData);
           }
         });
+
+        // Handle errors
+        if (errors.length > 0) {
+          addAiMessage('system', `Errors: ${errors.join(', ')}`);
+        }
+
+        // Handle duplicates
+        if (duplicates.length > 0) {
+          addAiMessage('system', `Already exists: ${duplicates.join(', ')}`);
+        }
+
+        // Handle valid suggestions
+        if (validSuggestions.length > 0) {
+          if (validSuggestions.length === 1) {
+            // Single device - keep current behavior (backward compatible)
+            addAiMessage('device_suggestion', response.text || 'I detected a device:', validSuggestions[0]);
+          } else {
+            // Multiple devices - use batch approval
+            setAiPendingDeviceBatch({
+              id: `batch-${Date.now()}`,
+              suggestions: validSuggestions,
+              messageText: response.text || `I detected ${validSuggestions.length} devices:`,
+              timestamp: new Date()
+            });
+            // Add assistant message for history (without data)
+            addAiMessage('assistant', response.text || `I detected ${validSuggestions.length} devices that could be added to your network.`);
+          }
+        }
       } else if (response.text && response.text.trim().length > 0) {
         // Check for change proposal in text
         const proposal = extractChangeProposal(response.text);
@@ -629,6 +664,76 @@ const NetworkTopologyEditor = () => {
   const handleDeclineSuggestion = useCallback(() => {
     addAiMessage('system', 'Okay, I won\'t add that device. Let me know if you change your mind!');
   }, [addAiMessage]);
+
+  // Handler for batch device approval
+  const handleApproveBatchDevices = useCallback(() => {
+    if (!aiPendingDeviceBatch) return;
+
+    const { suggestions } = aiPendingDeviceBatch;
+    const addedDevices = [];
+
+    saveHistory();
+
+    setDevices(prev => {
+      const updated = { ...prev };
+      const newConnectionsTemp = {};
+
+      suggestions.forEach(suggestion => {
+        const { device, connections: suggestedConnections, suggestedPosition } = suggestion;
+        const newDeviceId = genId('dev');
+
+        // Add device
+        updated[newDeviceId] = {
+          ...device,
+          id: newDeviceId,
+          x: suggestedPosition.x,
+          y: suggestedPosition.y,
+          physicalX: suggestedPosition.x,
+          physicalY: suggestedPosition.y
+        };
+
+        addedDevices.push(device.name);
+
+        // Prepare connections
+        if (suggestedConnections && suggestedConnections.length > 0) {
+          suggestedConnections.forEach(conn => {
+            const connId = genId('conn');
+            newConnectionsTemp[connId] = {
+              id: connId,
+              from: newDeviceId,
+              to: conn.toDeviceId,
+              fromPort: conn.fromPort || '',
+              toPort: conn.toPort || '',
+              type: conn.type || 'trunk',
+              speed: conn.speed || '1G',
+              vlans: conn.vlans || [],
+              cableType: conn.cableType || 'cat6',
+              status: 'up'
+            };
+          });
+        }
+      });
+
+      // Add connections after all devices
+      setConnections(prev => ({ ...prev, ...newConnectionsTemp }));
+
+      return updated;
+    });
+
+    // Summary message for history
+    addAiMessage('system', `✓ Added ${addedDevices.length} devices: ${addedDevices.join(', ')}`);
+
+    clearAiPendingDeviceBatch();
+  }, [aiPendingDeviceBatch, setDevices, setConnections, addAiMessage, clearAiPendingDeviceBatch, saveHistory]);
+
+  // Handler for batch device decline
+  const handleDeclineBatchDevices = useCallback(() => {
+    if (!aiPendingDeviceBatch) return;
+
+    const { suggestions } = aiPendingDeviceBatch;
+    addAiMessage('system', `Declined ${suggestions.length} device suggestions`);
+    clearAiPendingDeviceBatch();
+  }, [aiPendingDeviceBatch, addAiMessage, clearAiPendingDeviceBatch]);
 
   // Handler for "Approve" button from AI change proposal
   const handleApproveAiChange = useCallback(() => {
@@ -1654,6 +1759,9 @@ const NetworkTopologyEditor = () => {
           onDismissChange={handleDismissAiChange}
           onAddDevice={handleAddSuggestedDevice}
           onDeclineSuggestion={handleDeclineSuggestion}
+          pendingDeviceBatch={aiPendingDeviceBatch}
+          onApproveBatchDevices={handleApproveBatchDevices}
+          onDeclineBatchDevices={handleDeclineBatchDevices}
         />
         <div className="absolute bottom-3 left-3 flex items-center gap-1 rounded-lg shadow p-1" style={{ background: theme.surface, border: `1px solid ${theme.border}` }}><button onClick={() => setZoom(z => Math.max(z * 0.8, 0.15))} className="p-1.5 rounded transition-colors" style={{ color: theme.text }} onMouseEnter={(e) => e.currentTarget.style.background = theme.hover} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}><Icon d="M5 12h14" s={14} /></button><span className="px-2 text-xs font-medium w-12 text-center">{Math.round(zoom * 100)}%</span><button onClick={() => setZoom(z => Math.min(z * 1.2, 5))} className="p-1.5 rounded transition-colors" style={{ color: theme.text }} onMouseEnter={(e) => e.currentTarget.style.background = theme.hover} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}><Icon d="M12 5v14M5 12h14" s={14} /></button><button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="px-2 py-1 rounded transition-colors text-xs" style={{ color: theme.text }} onMouseEnter={(e) => e.currentTarget.style.background = theme.hover} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>Reset</button></div>
         <div className="absolute top-0 right-0 bottom-0 w-64 border-l overflow-y-auto" style={{ background: theme.surface, borderColor: theme.border, zIndex: 40 }}>

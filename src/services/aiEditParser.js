@@ -243,3 +243,38 @@ export function applyNestedUpdates(device, updates) {
 
   return updatedDevice;
 }
+
+/**
+ * Check if device already exists by name, IP, or MAC
+ * @param {Object} device - Device to check
+ * @param {Object} existingDevices - Existing devices object
+ * @returns {Object|null} Existing device if found, null otherwise
+ */
+export function findExistingDevice(device, existingDevices) {
+  // Check exact name match (case-insensitive)
+  const byName = Object.values(existingDevices).find(
+    d => d.name.toLowerCase().trim() === device.name.toLowerCase().trim()
+  );
+  if (byName) return byName;
+
+  // Check IP match (if IP provided)
+  if (device.ip && device.ip.trim()) {
+    const byIp = Object.values(existingDevices).find(
+      d => d.ip === device.ip.trim()
+    );
+    if (byIp) return byIp;
+  }
+
+  // Check MAC match (if MAC provided)
+  if (device.mac && device.mac.trim()) {
+    const normalizedMac = device.mac.replace(/[-:]/g, '').toLowerCase();
+    const byMac = Object.values(existingDevices).find(d => {
+      if (!d.mac) return false;
+      const existingMac = d.mac.replace(/[-:]/g, '').toLowerCase();
+      return existingMac === normalizedMac;
+    });
+    if (byMac) return byMac;
+  }
+
+  return null;
+}

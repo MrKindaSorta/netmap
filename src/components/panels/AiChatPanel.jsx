@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Icon } from '../common';
 import DeviceSuggestionCard from '../ai/DeviceSuggestionCard';
 import PendingChangeApproval from '../ai/PendingChangeApproval';
+import BatchDeviceSuggestion from '../ai/BatchDeviceSuggestion';
 
 const AiChatPanel = ({
   isOpen,
@@ -24,7 +25,10 @@ const AiChatPanel = ({
   onApproveChange,
   onDismissChange,
   onAddDevice,
-  onDeclineSuggestion
+  onDeclineSuggestion,
+  pendingDeviceBatch,
+  onApproveBatchDevices,
+  onDeclineBatchDevices
 }) => {
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
@@ -263,6 +267,22 @@ const AiChatPanel = ({
                 onDismiss={onDismissChange}
                 theme={theme}
                 devices={devices}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Batch Device Suggestions */}
+        {pendingDeviceBatch && (
+          <div className="flex justify-start">
+            <div className="w-full max-w-[95%]">
+              <BatchDeviceSuggestion
+                batchData={pendingDeviceBatch}
+                onApproveAll={onApproveBatchDevices}
+                onDeclineAll={onDeclineBatchDevices}
+                theme={theme}
+                deviceTypes={deviceTypes}
+                getDevColor={getDevColor}
               />
             </div>
           </div>
