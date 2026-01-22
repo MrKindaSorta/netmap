@@ -1,74 +1,177 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Modal from '../common/Modal';
 import { PrimaryButton, SecondaryButton, ModalFooter } from '../common/Button';
+import { detectAllConflicts, setNestedValue } from '../../utils/bulkEditConflicts';
+import { validateAllFields, validateIP, hasCriticalFields } from '../../utils/bulkEditValidation';
+import {
+  BulkBasicTab,
+  BulkHardwareTab,
+  BulkAssetTab,
+  BulkNetworkTab,
+  BulkDocumentationTab,
+  BulkAdvancedTab
+} from './bulk-edit-tabs';
 
 const BulkEditModal = ({ selectedDeviceIds, devices, buildings, vlans, onClose, onUpdate, theme }) => {
   const selectedCount = selectedDeviceIds.length;
 
-  const [changeBuilding, setChangeBuilding] = useState(false);
-  const [changeFloor, setChangeFloor] = useState(false);
-  const [changeStatus, setChangeStatus] = useState(false);
-  const [changeVlans, setChangeVlans] = useState(false);
-  const [changeLock, setChangeLock] = useState(false);
+  // Tab navigation
+  const [activeTab, setActiveTab] = useState('basic');
 
-  const [newBuilding, setNewBuilding] = useState('');
-  const [newFloor, setNewFloor] = useState('');
-  const [newStatus, setNewStatus] = useState('');
-  const [newLocked, setNewLocked] = useState(false);
-  const [vlanMode, setVlanMode] = useState('add'); // 'add' or 'replace'
-  const [selectedVlans, setSelectedVlans] = useState([]);
+  // Field state management
+  const [enabledFields, setEnabledFields] = useState({});
+  const [fieldValues, setFieldValues] = useState({});
+  const [conflicts, setConflicts] = useState({});
+  const [validations, setValidations] = useState({});
 
-  const statusOptions = [
-    { value: 'online', label: 'Online', color: '#22c55e' },
-    { value: 'offline', label: 'Offline', color: '#ef4444' },
-    { value: 'warning', label: 'Warning', color: '#f59e0b' },
-    { value: 'unknown', label: 'Unknown', color: '#6b7280' }
-  ];
+  // Define all fields that can be edited
+  const allFields = useMemo(() => [
+    // Basic
+    'status', 'buildingId', 'floor', 'locked',
+    // Hardware
+    'hardware.manufacturer', 'hardware.model', 'hardware.serialNumber',
+    'hardware.firmware.version', 'hardware.firmware.lastUpdated',
+    'hardware.firmware.updateAvailable', 'hardware.firmware.updateVersion',
+    // Asset
+    'asset.assetTag', 'asset.owner', 'asset.purchaseDate', 'asset.purchasePrice',
+    'asset.vendor', 'asset.costCenter', 'asset.warrantyExpires', 'asset.warrantyType',
+    'asset.maintenanceContract', 'asset.eolDate', 'asset.eosDate',
+    // Network
+    'network.hostname', 'network.fqdn', 'network.managementIP', 'network.managementVLAN',
+    'network.ipv6Address', 'network.defaultGateway', 'network.dnsServers',
+    'network.ntpServers', 'network.syslogServer',
+    // Documentation
+    'notes', 'location.room', 'location.rack', 'location.rackUnit', 'location.coordinates',
+    // Advanced
+    'vlans'
+  ], []);
 
-  const handleApply = () => {
+  // Critical fields that require confirmation
+  const criticalFields = ['network.managementIP', 'network.defaultGateway', 'network.ipv6Address'];
+
+  // Field validators
+  const fieldValidators = {
+    'network.managementIP': validateIP,
+    'network.defaultGateway': validateIP
+  };
+
+  // Initialize conflict detection on mount
+  useEffect(() => {
+    const detectedConflicts = detectAllConflicts(selectedDeviceIds, devices, allFields);
+    setConflicts(detectedConflicts);
+  }, [selectedDeviceIds, devices, allFields]);
+
+  // Handlers
+  const handleEnabledChange = (fieldPath, enabled) => {
+    setEnabledFields(prev => ({ ...prev, [fieldPath]: enabled }));
+
+    // Clear validation error when disabling field
+    if (!enabled) {
+      setValidations(prev => {
+        const newValidations = { ...prev };
+        delete newValidations[fieldPath];
+        return newValidations;
+      });
+    }
+  };
+
+  const handleValueChange = (fieldPath, value) => {
+    setFieldValues(prev => ({ ...prev, [fieldPath]: value }));
+
+    // Clear validation error when value changes
+    setValidations(prev => {
+      const newValidations = { ...prev };
+      delete newValidations[fieldPath];
+      return newValidations;
+    });
+  };
+
+  const handleApply = async () => {
+    // Validate all enabled fields
+    const errors = validateAllFields(enabledFields, fieldValues, fieldValidators);
+
+    if (Object.keys(errors).length > 0) {
+      setValidations(errors);
+      alert('Please fix validation errors before applying changes.');
+      return;
+    }
+
+    // Check for critical field changes
+    if (hasCriticalFields(enabledFields, criticalFields)) {
+      const confirmed = window.confirm(
+        `⚠️ You are about to modify network settings for ${selectedCount} device${selectedCount > 1 ? 's' : ''}.\n\n` +
+        'This could affect connectivity. Are you sure you want to continue?'
+      );
+
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    // Build updates object
     const updates = {};
 
-    if (changeBuilding) {
-      updates.buildingId = newBuilding === 'none' ? null : newBuilding;
-      if (changeFloor && newBuilding !== 'none') {
-        updates.floor = parseInt(newFloor) || 1;
-      } else if (newBuilding === 'none') {
-        updates.floor = null;
+    Object.keys(enabledFields).forEach(fieldPath => {
+      if (!enabledFields[fieldPath]) return;
+
+      const value = fieldValues[fieldPath];
+
+      // Handle nested fields with dot notation
+      if (fieldPath.includes('.')) {
+        setNestedValue(updates, fieldPath, value);
+      } else {
+        updates[fieldPath] = value;
       }
-    } else if (changeFloor && newFloor) {
-      updates.floor = parseInt(newFloor) || null;
-    }
+    });
 
-    if (changeStatus) {
-      updates.status = newStatus;
-    }
-
-    if (changeVlans && selectedVlans.length > 0) {
-      updates.vlans = selectedVlans.map(v => parseInt(v));
-      updates.vlanMode = vlanMode;
-    }
-
-    if (changeLock) {
-      updates.locked = newLocked;
-    }
-
+    // Call the update handler
     onUpdate(selectedDeviceIds, updates);
     onClose();
   };
 
-  const toggleVlan = (vlanId) => {
-    setSelectedVlans(prev =>
-      prev.includes(vlanId)
-        ? prev.filter(v => v !== vlanId)
-        : [...prev, vlanId]
-    );
-  };
+  // Count enabled fields per tab
+  const enabledCounts = useMemo(() => {
+    const counts = {
+      basic: 0,
+      hardware: 0,
+      asset: 0,
+      network: 0,
+      documentation: 0,
+      advanced: 0
+    };
 
-  const availableFloors = newBuilding && newBuilding !== 'none' && buildings[newBuilding]
-    ? buildings[newBuilding].floors
-    : [];
+    Object.keys(enabledFields).forEach(field => {
+      if (!enabledFields[field]) return;
 
-  const hasChanges = changeBuilding || changeStatus || changeVlans || changeLock;
+      if (['status', 'buildingId', 'floor', 'locked'].includes(field)) {
+        counts.basic++;
+      } else if (field.startsWith('hardware.')) {
+        counts.hardware++;
+      } else if (field.startsWith('asset.')) {
+        counts.asset++;
+      } else if (field.startsWith('network.')) {
+        counts.network++;
+      } else if (field === 'notes' || field.startsWith('location.')) {
+        counts.documentation++;
+      } else if (field === 'vlans') {
+        counts.advanced++;
+      }
+    });
+
+    return counts;
+  }, [enabledFields]);
+
+  const hasChanges = Object.values(enabledFields).some(enabled => enabled);
+
+  // Tab definitions
+  const tabs = [
+    { id: 'basic', label: 'Basic', icon: '⚙️' },
+    { id: 'hardware', label: 'Hardware', icon: '🔧' },
+    { id: 'asset', label: 'Asset', icon: '💼' },
+    { id: 'network', label: 'Network', icon: '🌐' },
+    { id: 'documentation', label: 'Documentation', icon: '📝' },
+    { id: 'advanced', label: 'Advanced', icon: '⚡' }
+  ];
 
   const footer = (
     <ModalFooter>
@@ -89,7 +192,7 @@ const BulkEditModal = ({ selectedDeviceIds, devices, buildings, vlans, onClose, 
       title={`Bulk Edit ${selectedCount} Device${selectedCount > 1 ? 's' : ''}`}
       onClose={onClose}
       theme={theme}
-      size="lg"
+      size="xl"
       footer={footer}
     >
       <div className="space-y-5">
@@ -97,220 +200,129 @@ const BulkEditModal = ({ selectedDeviceIds, devices, buildings, vlans, onClose, 
           Select which properties to update for all selected devices. Uncheck options to leave them unchanged.
         </p>
 
-        {/* Building Assignment */}
-        <div className="border rounded-lg p-4" style={{ borderColor: theme.border }}>
-          <div className="flex items-center gap-2 mb-3">
-            <input
-              type="checkbox"
-              id="change-building"
-              checked={changeBuilding}
-              onChange={(e) => setChangeBuilding(e.target.checked)}
-              className="w-4 h-4 rounded"
-            />
-            <label htmlFor="change-building" className="text-sm font-semibold">
-              📍 Change Building Assignment
-            </label>
-          </div>
-          {changeBuilding && (
-            <div className="ml-6 space-y-3">
-              <select
-                value={newBuilding}
-                onChange={(e) => {
-                  setNewBuilding(e.target.value);
-                  setNewFloor('');
-                }}
-                className="w-full px-3 py-2 rounded-lg border text-sm"
-                style={{ background: theme.bg, borderColor: theme.border }}
-              >
-                <option value="">Select Building...</option>
-                <option value="none">No Building (Unassign)</option>
-                {Object.values(buildings).map(b => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
-                ))}
-              </select>
-
-              {newBuilding && newBuilding !== 'none' && availableFloors.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <input
-                      type="checkbox"
-                      id="change-floor"
-                      checked={changeFloor}
-                      onChange={(e) => setChangeFloor(e.target.checked)}
-                      className="w-4 h-4 rounded"
-                    />
-                    <label htmlFor="change-floor" className="text-xs font-medium">
-                      Also change floor
-                    </label>
-                  </div>
-                  {changeFloor && (
-                    <select
-                      value={newFloor}
-                      onChange={(e) => setNewFloor(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg border text-sm"
-                      style={{ background: theme.bg, borderColor: theme.border }}
-                    >
-                      <option value="">Select Floor...</option>
-                      {availableFloors.map(f => (
-                        <option key={f.id} value={f.id}>{f.name}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
+        {/* Tab Navigation */}
+        <div className="flex gap-1 pb-3 border-b" style={{ borderColor: theme.border }}>
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className="px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 relative"
+              style={{
+                background: activeTab === tab.id ? theme.bgSecondary : 'transparent',
+                color: activeTab === tab.id ? theme.text : theme.textMuted,
+                border: `1px solid ${activeTab === tab.id ? theme.border : 'transparent'}`
+              }}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
+              {enabledCounts[tab.id] > 0 && (
+                <span
+                  className="text-xs px-1.5 py-0.5 rounded font-bold"
+                  style={{
+                    background: '#2563eb',
+                    color: '#fff'
+                  }}
+                >
+                  {enabledCounts[tab.id]}
+                </span>
               )}
-            </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Content */}
+        <div className="min-h-[400px] max-h-[500px] overflow-y-auto pr-2">
+          {activeTab === 'basic' && (
+            <BulkBasicTab
+              enabledFields={enabledFields}
+              fieldValues={fieldValues}
+              conflicts={conflicts}
+              validations={validations}
+              onEnabledChange={handleEnabledChange}
+              onValueChange={handleValueChange}
+              theme={theme}
+              buildings={buildings}
+              selectedDeviceIds={selectedDeviceIds}
+            />
+          )}
+
+          {activeTab === 'hardware' && (
+            <BulkHardwareTab
+              enabledFields={enabledFields}
+              fieldValues={fieldValues}
+              conflicts={conflicts}
+              validations={validations}
+              onEnabledChange={handleEnabledChange}
+              onValueChange={handleValueChange}
+              theme={theme}
+            />
+          )}
+
+          {activeTab === 'asset' && (
+            <BulkAssetTab
+              enabledFields={enabledFields}
+              fieldValues={fieldValues}
+              conflicts={conflicts}
+              validations={validations}
+              onEnabledChange={handleEnabledChange}
+              onValueChange={handleValueChange}
+              theme={theme}
+            />
+          )}
+
+          {activeTab === 'network' && (
+            <BulkNetworkTab
+              enabledFields={enabledFields}
+              fieldValues={fieldValues}
+              conflicts={conflicts}
+              validations={validations}
+              onEnabledChange={handleEnabledChange}
+              onValueChange={handleValueChange}
+              theme={theme}
+            />
+          )}
+
+          {activeTab === 'documentation' && (
+            <BulkDocumentationTab
+              enabledFields={enabledFields}
+              fieldValues={fieldValues}
+              conflicts={conflicts}
+              validations={validations}
+              onEnabledChange={handleEnabledChange}
+              onValueChange={handleValueChange}
+              theme={theme}
+            />
+          )}
+
+          {activeTab === 'advanced' && (
+            <BulkAdvancedTab
+              enabledFields={enabledFields}
+              fieldValues={fieldValues}
+              conflicts={conflicts}
+              validations={validations}
+              onEnabledChange={handleEnabledChange}
+              onValueChange={handleValueChange}
+              theme={theme}
+              vlans={vlans}
+            />
           )}
         </div>
 
-        {/* Status */}
-        <div className="border rounded-lg p-4" style={{ borderColor: theme.border }}>
-          <div className="flex items-center gap-2 mb-3">
-            <input
-              type="checkbox"
-              id="change-status"
-              checked={changeStatus}
-              onChange={(e) => setChangeStatus(e.target.checked)}
-              className="w-4 h-4 rounded"
-            />
-            <label htmlFor="change-status" className="text-sm font-semibold">
-              🔄 Change Status
-            </label>
+        {/* Summary */}
+        {hasChanges && (
+          <div
+            className="text-sm p-3 rounded-lg"
+            style={{
+              background: '#3b82f620',
+              color: theme.text,
+              border: '1px solid #3b82f640'
+            }}
+          >
+            <strong>Summary:</strong> {Object.values(enabledFields).filter(Boolean).length} field
+            {Object.values(enabledFields).filter(Boolean).length > 1 ? 's' : ''} will be updated for {selectedCount} device
+            {selectedCount > 1 ? 's' : ''}.
           </div>
-          {changeStatus && (
-            <div className="ml-6 grid grid-cols-2 gap-2">
-              {statusOptions.map(status => (
-                <button
-                  key={status.value}
-                  onClick={() => setNewStatus(status.value)}
-                  className="px-3 py-2.5 rounded-lg text-sm font-medium transition-all"
-                  style={{
-                    background: newStatus === status.value ? status.color : theme.bg,
-                    border: `2px solid ${newStatus === status.value ? status.color : theme.border}`,
-                    color: newStatus === status.value ? '#fff' : theme.text
-                  }}
-                >
-                  {status.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* VLANs */}
-        <div className="border rounded-lg p-4" style={{ borderColor: theme.border }}>
-          <div className="flex items-center gap-2 mb-3">
-            <input
-              type="checkbox"
-              id="change-vlans"
-              checked={changeVlans}
-              onChange={(e) => setChangeVlans(e.target.checked)}
-              className="w-4 h-4 rounded"
-            />
-            <label htmlFor="change-vlans" className="text-sm font-semibold">
-              🔀 Change VLANs
-            </label>
-          </div>
-          {changeVlans && (
-            <div className="ml-6 space-y-3">
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setVlanMode('add')}
-                  className="flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all"
-                  style={{
-                    background: vlanMode === 'add' ? '#2563eb' : theme.bg,
-                    border: `1px solid ${vlanMode === 'add' ? '#2563eb' : theme.border}`,
-                    color: vlanMode === 'add' ? '#fff' : theme.text
-                  }}
-                >
-                  Add to Existing
-                </button>
-                <button
-                  onClick={() => setVlanMode('replace')}
-                  className="flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all"
-                  style={{
-                    background: vlanMode === 'replace' ? '#2563eb' : theme.bg,
-                    border: `1px solid ${vlanMode === 'replace' ? '#2563eb' : theme.border}`,
-                    color: vlanMode === 'replace' ? '#fff' : theme.text
-                  }}
-                >
-                  Replace All
-                </button>
-              </div>
-              <div
-                className="max-h-48 overflow-y-auto border rounded-lg p-2"
-                style={{ borderColor: theme.border, background: theme.bg }}
-              >
-                {Object.values(vlans).map(vlan => (
-                  <div
-                    key={vlan.id}
-                    onClick={() => toggleVlan(vlan.id)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-opacity-10 transition-colors"
-                    style={{
-                      background: selectedVlans.includes(vlan.id) ? `${vlan.color}20` : 'transparent'
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedVlans.includes(vlan.id)}
-                      onChange={() => {}}
-                      className="w-4 h-4 rounded"
-                    />
-                    <div
-                      className="w-3 h-3 rounded"
-                      style={{ background: vlan.color }}
-                    />
-                    <span className="text-sm flex-1">{vlan.name}</span>
-                    <span className="text-xs font-mono" style={{ color: theme.textMuted }}>
-                      VLAN {vlan.id}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Lock Position */}
-        <div className="border rounded-lg p-4" style={{ borderColor: theme.border }}>
-          <div className="flex items-center gap-2 mb-3">
-            <input
-              type="checkbox"
-              id="change-lock"
-              checked={changeLock}
-              onChange={(e) => setChangeLock(e.target.checked)}
-              className="w-4 h-4 rounded"
-            />
-            <label htmlFor="change-lock" className="text-sm font-semibold">
-              🔒 Change Lock Status
-            </label>
-          </div>
-          {changeLock && (
-            <div className="ml-6 grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setNewLocked(true)}
-                className="px-3 py-2.5 rounded-lg text-sm font-medium transition-all"
-                style={{
-                  background: newLocked ? '#ef4444' : theme.bg,
-                  border: `2px solid ${newLocked ? '#ef4444' : theme.border}`,
-                  color: newLocked ? '#fff' : theme.text
-                }}
-              >
-                🔒 Lock Positions
-              </button>
-              <button
-                onClick={() => setNewLocked(false)}
-                className="px-3 py-2.5 rounded-lg text-sm font-medium transition-all"
-                style={{
-                  background: !newLocked ? '#22c55e' : theme.bg,
-                  border: `2px solid ${!newLocked ? '#22c55e' : theme.border}`,
-                  color: !newLocked ? '#fff' : theme.text
-                }}
-              >
-                🔓 Unlock Positions
-              </button>
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </Modal>
   );

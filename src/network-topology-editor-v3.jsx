@@ -174,6 +174,7 @@ const NetworkTopologyEditor = () => {
     isPanning, setIsPanning,
     panStart, setPanStart,
     mouseDownPos, setMouseDownPos,
+    mousePosition, setMousePosition,
     drawingMode, setDrawingMode,
     drawingStart, setDrawingStart,
     measurePoints, setMeasurePoints,
@@ -292,14 +293,38 @@ const NetworkTopologyEditor = () => {
     }));
   }, []);
 
+  // Deep merge utility for nested object updates
+  const deepMerge = useCallback((target, source) => {
+    const output = { ...target };
+
+    Object.keys(source).forEach(key => {
+      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key]) && !(source[key] instanceof Date)) {
+        output[key] = deepMerge(target[key] || {}, source[key]);
+      } else {
+        output[key] = source[key];
+      }
+    });
+
+    return output;
+  }, []);
+
   const handleBulkDeviceUpdate = useCallback((deviceIds, updates) => {
     setDevices(prev => {
       const updated = { ...prev };
 
+      // Extract special modes
+      const notesMode = updates._notesMode;
+      const vlanMode = updates.vlanMode;
+
+      // Remove mode flags from updates object
+      const cleanUpdates = { ...updates };
+      delete cleanUpdates._notesMode;
+      delete cleanUpdates.vlanMode;
+
       // If assigning to a building, use intelligent layout
       let layoutPositions = {};
-      if (updates.buildingId) {
-        const building = buildings[updates.buildingId];
+      if (cleanUpdates.buildingId) {
+        const building = buildings[cleanUpdates.buildingId];
         if (building) {
           // Calculate intelligent layout positions for all devices being assigned
           layoutPositions = layoutDevicesInBuilding(prev, deviceIds, building);
@@ -313,28 +338,31 @@ const NetworkTopologyEditor = () => {
         // Get physical position updates from layout service
         const physicalUpdates = layoutPositions[deviceId] || {};
 
-        // Handle VLAN updates specially
-        if (updates.vlans && updates.vlanMode) {
-          const currentVlans = device.vlans || [1];
-          const newVlans = updates.vlanMode === 'add'
-            ? [...new Set([...currentVlans, ...updates.vlans])]
-            : updates.vlans;
+        // Start with deep merge for nested objects
+        let merged = deepMerge(device, cleanUpdates);
 
-          updated[deviceId] = {
-            ...device,
-            ...updates,
-            ...physicalUpdates,
-            vlans: newVlans,
-            vlanMode: undefined // Don't store this in device
-          };
-        } else {
-          updated[deviceId] = {
-            ...device,
-            ...updates,
-            ...physicalUpdates
-          };
+        // Apply physical updates
+        merged = { ...merged, ...physicalUpdates };
+
+        // Special handling: notes append mode
+        if (notesMode === 'append' && cleanUpdates.notes) {
+          const existingNotes = device.notes || '';
+          merged.notes = existingNotes
+            ? `${existingNotes}\n\n${cleanUpdates.notes}`
+            : cleanUpdates.notes;
         }
+
+        // Special handling: VLAN add/replace mode
+        if (cleanUpdates.vlans && vlanMode) {
+          const currentVlans = device.vlans || [1];
+          merged.vlans = vlanMode === 'add'
+            ? [...new Set([...currentVlans, ...cleanUpdates.vlans])]
+            : cleanUpdates.vlans;
+        }
+
+        updated[deviceId] = merged;
       });
+
       return updated;
     });
 
@@ -351,7 +379,7 @@ const NetworkTopologyEditor = () => {
         setSelectedDevices(new Set());
       }, 2000);
     }
-  }, [buildings]);
+  }, [buildings, deepMerge]);
 
   const handleConnectionUpdate = useCallback((connectionId, updates) => {
     setConnections(prev => ({
@@ -996,6 +1024,7 @@ const NetworkTopologyEditor = () => {
     showGrid,
     selectedDevices, setSelectedDevices,
     selectedConnection, setSelectedConnection,
+    setEditingConnection,
     selectionBox, setSelectionBox,
     selectedBuilding,
     selectedFloor,
@@ -1003,6 +1032,7 @@ const NetworkTopologyEditor = () => {
     isPanning, setIsPanning,
     panStart, setPanStart,
     connecting, setConnecting,
+    mousePosition, setMousePosition,
     mouseDownPos, setMouseDownPos,
     drawingMode,
     drawingStart, setDrawingStart,
@@ -1011,7 +1041,7 @@ const NetworkTopologyEditor = () => {
     draggingBuilding, setDraggingBuilding,
     devices, setDevices,
     buildings, setBuildings,
-    setConnections,
+    connections, setConnections,
     setContextMenu,
     getSvgPt,
     genId
@@ -1591,7 +1621,7 @@ const NetworkTopologyEditor = () => {
             theme={theme}
           />
         )}
-        <svg ref={svgRef} className="w-full h-full" onWheel={handleWheel} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onContextMenu={handleCanvasContextMenu} style={{ cursor: drawingMode ? 'crosshair' : isPanning ? 'grabbing' : 'grab' }}>
+        <svg ref={svgRef} className="w-full h-full" onWheel={handleWheel} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onContextMenu={handleCanvasContextMenu} style={{ cursor: connecting ? 'crosshair' : drawingMode ? 'crosshair' : isPanning ? 'grabbing' : 'grab' }}>
           <defs><pattern id="gs" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke={theme.grid} strokeWidth="0.5" /></pattern><pattern id="gl" width="100" height="100" patternUnits="userSpaceOnUse"><path d="M 100 0 L 0 0 0 100" fill="none" stroke={theme.gridL} strokeWidth="1" /></pattern></defs>
           <g transform={`translate(${pan.x},${pan.y}) scale(${zoom})`}>
             {showGrid && (() => {
@@ -1625,7 +1655,20 @@ const NetworkTopologyEditor = () => {
                   onContextMenu={handleConnectionContextMenu}
                 />
               ))}
-              {connecting && devices[connecting] && <circle cx={devices[connecting].x} cy={devices[connecting].y} r="45" fill="none" stroke="#3b82f6" strokeWidth="2" strokeDasharray="6,3" opacity="0.5" />}
+              {connecting && devices[connecting.from] && <circle cx={devices[connecting.from].x} cy={devices[connecting.from].y} r="45" fill="none" stroke="#3b82f6" strokeWidth="2" strokeDasharray="6,3" opacity="0.5" />}
+              {connecting && devices[connecting.from] && mousePosition && (
+                <line
+                  x1={devices[connecting.from].x}
+                  y1={devices[connecting.from].y}
+                  x2={mousePosition.x}
+                  y2={mousePosition.y}
+                  stroke="#3b82f6"
+                  strokeWidth="2"
+                  strokeDasharray="8,4"
+                  opacity="0.6"
+                  pointerEvents="none"
+                />
+              )}
               {Object.values(filteredDevs).map(d => (
                 <DevNode
                   key={d.id}
@@ -1633,6 +1676,7 @@ const NetworkTopologyEditor = () => {
                   isSelected={selectedDevices.has(d.id)}
                   isHighlighted={highlightedPath?.devices.has(d.id)}
                   isConnecting={connecting === d.id}
+                  isValidTarget={connecting && connecting.from !== d.id}
                   highlightedPath={highlightedPath}
                   theme={theme}
                   circleScale={circleScale}
@@ -1682,6 +1726,7 @@ const NetworkTopologyEditor = () => {
                       isSelected={selectedDevices.has(d.id)}
                       isHighlighted={highlightedPath?.devices.has(d.id)}
                       isConnecting={connecting === d.id}
+                      isValidTarget={connecting && connecting.from !== d.id}
                       highlightedPath={highlightedPath}
                       theme={theme}
                       circleScale={circleScale}
