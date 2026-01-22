@@ -1,5 +1,5 @@
 // Find path to WAN using BFS algorithm
-export const findPathToWan = (devices, connections, startDeviceId) => {
+export const findPathToWan = (startDeviceId, devices, connections) => {
   // 1. Find all WAN devices
   const wanDevices = Object.values(devices).filter(d => d.type === 'wan');
 
