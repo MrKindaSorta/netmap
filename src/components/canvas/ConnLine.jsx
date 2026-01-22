@@ -40,6 +40,9 @@ const ConnLine = ({
 
   const getUnit = () => (measurementUnit === 'metric' ? 'm' : 'ft');
 
+  // Calculate opacity for dimming non-highlighted elements
+  const opacity = (highlightedPath && !isHighlighted) ? 0.35 : 1;
+
   return (
     <g
       onClick={(e) => onConnClick(e, c.id)}
@@ -48,6 +51,7 @@ const ConnLine = ({
       onMouseLeave={() => onMouseLeave()}
       onContextMenu={(e) => onContextMenu(e, c.id)}
       style={{ cursor: 'pointer' }}
+      opacity={opacity}
     >
       <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="transparent" strokeWidth="14" />
 

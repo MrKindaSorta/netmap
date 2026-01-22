@@ -6,6 +6,7 @@ const DevNode = ({
   isSelected,
   isHighlighted,
   isConnecting,
+  isValidTarget,
   highlightedPath,
   theme,
   circleScale,
@@ -38,6 +39,9 @@ const DevNode = ({
   const truncateAt = Math.floor((isPhysical ? 5 : 8) * circleScale);
   const isLocked = d.locked;
 
+  // Calculate opacity for dimming non-highlighted elements
+  const opacity = (highlightedPath && !isHighlighted) ? 0.35 : 1;
+
   return (
     <g
       transform={`translate(${x},${y}) scale(${screenSizeScale})`}
@@ -45,6 +49,7 @@ const DevNode = ({
       onDoubleClick={() => onDoubleClick(d.id)}
       onContextMenu={(e) => onContextMenu(e, d.id)}
       style={{ cursor: isLocked ? 'default' : 'move' }}
+      opacity={opacity}
     >
       {/* Pulsing glow when highlighted */}
       {isHighlighted && (
@@ -59,6 +64,18 @@ const DevNode = ({
             attributeName="opacity"
             values="0.2;0.4;0.2"
             dur="2s"
+            repeatCount="indefinite"
+          />
+        </circle>
+      )}
+
+      {/* Valid target glow (when in connection mode) */}
+      {isValidTarget && (
+        <circle r={sz + 8} fill="#22c55e" opacity="0.3">
+          <animate
+            attributeName="opacity"
+            values="0.2;0.4;0.2"
+            dur="1.5s"
             repeatCount="indefinite"
           />
         </circle>
@@ -188,6 +205,7 @@ const areEqual = (prevProps, nextProps) => {
     prevProps.isSelected === nextProps.isSelected &&
     prevProps.isHighlighted === nextProps.isHighlighted &&
     prevProps.isConnecting === nextProps.isConnecting &&
+    prevProps.isValidTarget === nextProps.isValidTarget &&
     prevProps.circleScale === nextProps.circleScale &&
     prevProps.deviceLabelScale === nextProps.deviceLabelScale &&
     prevProps.isPhysical === nextProps.isPhysical &&
