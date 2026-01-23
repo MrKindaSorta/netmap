@@ -17,6 +17,7 @@ export const useInteractionState = () => {
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [mouseDownPos, setMouseDownPos] = useState(null);
+  const [mousePosition, setMousePosition] = useState(null);
   const [drawingMode, setDrawingMode] = useState(null);
   const [drawingStart, setDrawingStart] = useState(null);
   const [measurePoints, setMeasurePoints] = useState([]);
@@ -30,6 +31,7 @@ export const useInteractionState = () => {
     setConnecting(null);
     setIsPanning(false);
     setMouseDownPos(null);
+    setMousePosition(null);
     setDrawingMode(null);
     setDrawingStart(null);
     setResizingRoom(null);
@@ -61,6 +63,8 @@ export const useInteractionState = () => {
     setPanStart,
     mouseDownPos,
     setMouseDownPos,
+    mousePosition,
+    setMousePosition,
 
     // Drawing mode
     drawingMode,

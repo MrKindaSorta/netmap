@@ -130,19 +130,29 @@ Guidelines:
 When users paste network configuration outputs, logs, or device listings:
 
 ### Step 1: Parse Input Types
+- **Simple Tables**: Port/IP/MAC/Model columns (like CSV or markdown tables)
 - Cisco IOS/IOS-XE: "show cdp neighbors", "show ip interface brief", "show version"
 - Meraki: Device names like "MS350-48FP", "MX85", "MR46"
 - CDP/LLDP: Neighbor information with ports and IPs
 - Linux/Server: "ip addr", "ifconfig", hostname outputs
 
+For simple tables (Port, IP, MAC, Model format):
+- Parse EVERY row as a separate device
+- Each row = one device to suggest
+- Count the rows first to verify you're processing all devices
+- If user says "17 devices" and you count 17 rows, suggest ALL 17
+
 ### Step 2: Extract Device Properties
-- Name/Hostname from CDP, config outputs, or descriptions
-- Type from model numbers (MS350 = switch, MX85 = firewall, MR46 = ap)
-- IP Address from interface configs
-- MAC Address from hardware listings
-- Manufacturer/Model from version strings
-- Ports/Interfaces for connections
-- VLANs from trunk configs
+- Name/Hostname: Generate from Model + Port (e.g., "VVX-250-gi1")
+- Type: Determine from model:
+  - VVX 250/450 = server (VoIP phone)
+  - MeetingBar = server (video conferencing)
+  - Switches/Routers = switch/router
+  - Access Points = ap
+- IP Address from table column
+- MAC Address from table column
+- Port from table column (for connection to specified switch)
+- Manufacturer/Model from model column
 
 ### Step 3: CRITICAL - Check Against Existing Devices
 BEFORE suggesting:
@@ -150,31 +160,54 @@ BEFORE suggesting:
 2. Check if IP address exists in network context
 3. Check if MAC address exists in network context
 4. ONLY suggest devices NOT already in topology
-5. If multiple devices detected, suggest ALL valid ones in the SAME response
 
-IMPORTANT: When detecting multiple new devices, call suggest_device_addition
-for EACH device in the SAME response. The user will approve them as a batch.
+### Step 4: MUST SUGGEST ALL DEVICES IN ONE RESPONSE
+**CRITICAL REQUIREMENT:**
+- When you detect multiple NEW devices (not in topology), you MUST call
+  suggest_device_addition for EVERY SINGLE ONE in the SAME response
+- If you detect 17 new devices, call the tool 17 times
+- If you detect 11 new devices, call the tool 11 times
+- DO NOT skip devices, DO NOT batch them across multiple responses
+- The user will approve all suggestions at once
+
+Example: User pastes 17 devices → You verify 17 are new → Call tool 17 times in same response
 
 DO NOT re-suggest devices that appear in the network context, even if they
 were recently added from your previous suggestions.
 
-### Step 4: Detect Connections
+### Step 5: Detect Connections
 From CDP/LLDP neighbors:
 - "Gi1/0/24 connected to KSP-Core-SW Gi1/0/1"
 - Extract: local port, remote device name, remote port
 
-### Step 5: Call suggest_device_addition Tool
+For simple tables with Port column:
+- Port column (e.g., "gi1", "gi10") = port on the specified switch
+- When user says "connected to IDF2" or similar, that's the switch name
+- Create connection: new device → specified switch port
+- Connection details: fromPort='', toPort=<port from table>, type='access', speed='1G'
+
+### Step 6: Call suggest_device_addition Tool
 When you detect a NEW device:
 1. Call tool with complete device properties
-2. Provide conversational message explaining detection
-3. Include reasoning and confidence level
+2. Include connection to the switch if port specified
+3. Provide conversational message explaining detection
+4. Include reasoning and confidence level
+5. CALL THE TOOL FOR EVERY DEVICE - no exceptions
 
-### Step 6: Smart Position Calculation
+### Step 7: Smart Position Calculation
 Suggest position based on:
 - near_connected: If connected to existing device (prefer this when connections exist)
 - near_similar_type: Group similar types together
 - building_location: Use building bounds if location known
 - topology_tier: Core in center, distribution mid, access at edges
+
+### FINAL REMINDER - CRITICAL
+When processing device lists:
+1. Count total devices in user's list
+2. Check each against existing network topology
+3. Call suggest_device_addition for EVERY new device in ONE response
+4. If you say "I'll add 17 devices", you MUST call the tool 17 times
+5. The user expects the exact count they mentioned - deliver it
 
 ## Network Device Editing Capability
 
@@ -352,7 +385,7 @@ async function handlePost(request, env) {
         // Configure API call with optional tools
         const apiConfig = {
           model: 'claude-sonnet-4-5-20250929',
-          max_tokens: 4096,
+          max_tokens: 8192, // Increased to handle large batches of device suggestions
           system: systemPrompt,
           messages: messages,
         };
@@ -364,6 +397,10 @@ async function handlePost(request, env) {
 
         const stream = await anthropic.messages.stream(apiConfig);
 
+        // Track content blocks to send complete tool calls once
+        const contentBlocks = [];
+        const sentToolCallIds = new Set();
+
         // Stream events to client
         for await (const event of stream) {
           // Handle text deltas
@@ -372,39 +409,47 @@ async function handlePost(request, env) {
             await writer.write(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
           }
 
-          // Handle tool use blocks
-          if (event.type === 'content_block_start' && event.content_block?.type === 'tool_use') {
-            const toolUse = event.content_block;
-            // Send tool call notification (input will come in deltas)
-            await writer.write(encoder.encode(`data: ${JSON.stringify({
-              toolCall: {
-                id: toolUse.id,
-                name: toolUse.name,
-                input: toolUse.input || {}
-              }
-            })}\n\n`));
+          // Track content blocks as they start
+          if (event.type === 'content_block_start') {
+            contentBlocks[event.index] = event.content_block;
           }
 
-          // Handle tool use input deltas (accumulate full input)
+          // Accumulate input JSON deltas
           if (event.type === 'content_block_delta' && event.delta.type === 'input_json_delta') {
-            // Input deltas will be accumulated by the client or sent as final in content_block_stop
+            if (contentBlocks[event.index]) {
+              // Accumulate the partial JSON string
+              if (!contentBlocks[event.index].partial_json) {
+                contentBlocks[event.index].partial_json = '';
+              }
+              contentBlocks[event.index].partial_json += event.delta.partial_json;
+            }
           }
 
           // Handle complete tool use at block stop
           if (event.type === 'content_block_stop' && event.index !== undefined) {
-            // Get the complete message to extract tool use
-            const finalMessage = await stream.finalMessage();
-            if (finalMessage && finalMessage.content) {
-              const toolUseBlocks = finalMessage.content.filter(block => block.type === 'tool_use');
-              for (const toolUse of toolUseBlocks) {
-                await writer.write(encoder.encode(`data: ${JSON.stringify({
-                  toolCall: {
-                    id: toolUse.id,
-                    name: toolUse.name,
-                    input: toolUse.input
-                  }
-                })}\n\n`));
+            const block = contentBlocks[event.index];
+
+            // Only send tool calls once per unique ID
+            if (block && block.type === 'tool_use' && !sentToolCallIds.has(block.id)) {
+              sentToolCallIds.add(block.id);
+
+              // Parse the accumulated JSON input
+              let input = block.input || {};
+              if (block.partial_json) {
+                try {
+                  input = JSON.parse(block.partial_json);
+                } catch (e) {
+                  console.error('Failed to parse tool input JSON:', e);
+                }
               }
+
+              await writer.write(encoder.encode(`data: ${JSON.stringify({
+                toolCall: {
+                  id: block.id,
+                  name: block.name,
+                  input: input
+                }
+              })}\n\n`));
             }
           }
         }

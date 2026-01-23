@@ -2,5 +2,21 @@ name = "netmap"
 compatibility_date = "2024-01-01"
 pages_build_output_dir = "dist"
 
+# D1 Database binding for network metadata
+[[d1_databases]]
+binding = "DB"
+database_name = "netmap-db"
+database_id = "34a80351-1eb8-48f3-b174-08a37f8fee9b"
+
+# KV Namespace binding for network data storage
+[[kv_namespaces]]
+binding = "NETWORK_STORE"
+id = "24093bbcb8b9453ea8a9a0987bf78982"
+
+# KV Namespace binding for rate limiting
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "58d8cdc9237e418fb36990f2e49f85cf"
+
 [vars]
 ENVIRONMENT = "development"

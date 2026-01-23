@@ -27,6 +27,7 @@ export const useCanvasMouseEvents = ({
   setSelectedDevices,
   selectedConnection,
   setSelectedConnection,
+  setEditingConnection,
   selectionBox,
   setSelectionBox,
   selectedBuilding,
@@ -41,6 +42,8 @@ export const useCanvasMouseEvents = ({
   setPanStart,
   connecting,
   setConnecting,
+  mousePosition,
+  setMousePosition,
   mouseDownPos,
   setMouseDownPos,
   drawingMode,
@@ -58,6 +61,7 @@ export const useCanvasMouseEvents = ({
   setDevices,
   buildings,
   setBuildings,
+  connections,
   setConnections,
 
   // Context menu
@@ -127,6 +131,12 @@ export const useCanvasMouseEvents = ({
   ]);
 
   const handleMouseMove = useCallback((e) => {
+    // Track mouse position for connection preview line
+    if (connecting) {
+      const pt = getSvgPt(e);
+      setMousePosition(pt);
+    }
+
     if (resizingRoom) {
       const pt = getSvgPt(e);
       const b = buildings[selectedBuilding];
@@ -314,9 +324,9 @@ export const useCanvasMouseEvents = ({
     }
   }, [
     selectionBox, isPanning, panStart, dragging, getSvgPt, showGrid, viewMode,
-    selectedDevices, devices, mouseDownPos, resizingRoom, movingRooms,
+    selectedDevices, devices, mouseDownPos, connecting, resizingRoom, movingRooms,
     draggingBuilding, buildings, selectedBuilding, selectedFloor,
-    setSelectionBox, setPan, setMouseDownPos, setDevices, setBuildings
+    setSelectionBox, setPan, setMouseDownPos, setMousePosition, setDevices, setBuildings
   ]);
 
   const handleMouseUp = useCallback((e) => {
@@ -437,6 +447,53 @@ export const useCanvasMouseEvents = ({
     e.stopPropagation();
     const device = devices[id];
 
+    // Check if we're in connection mode
+    if (connecting && connecting.from) {
+      // Prevent self-connection
+      if (connecting.from === id) {
+        setConnecting(null);
+        return;
+      }
+
+      // Check for duplicate connection
+      const duplicateExists = Object.values(connections).some(
+        conn => (conn.from === connecting.from && conn.to === id) ||
+                 (conn.from === id && conn.to === connecting.from)
+      );
+
+      if (duplicateExists) {
+        setConnecting(null);
+        return;
+      }
+
+      // Create the connection
+      const newConnId = genId('conn');
+      const newConnection = {
+        id: newConnId,
+        from: connecting.from,
+        to: id,
+        fromPort: '',
+        toPort: '',
+        type: 'trunk',
+        speed: '1G',
+        vlans: [1],
+        cableType: 'cat6',
+        cableLength: 0
+      };
+
+      setConnections(prev => ({
+        ...prev,
+        [newConnId]: newConnection
+      }));
+
+      setConnecting(null);
+      setSelectedConnection(newConnId);
+      setEditingConnection(newConnId); // Open config modal immediately
+      setSelectedDevices(new Set());
+      return; // Don't start dragging when completing connection
+    }
+
+    // Normal device selection and dragging
     if (!device?.locked) {
       setDragging(id);
     }
@@ -452,7 +509,7 @@ export const useCanvasMouseEvents = ({
     }
 
     setSelectedConnection(null);
-  }, [selectedDevices, devices, setDragging, setSelectedDevices, setSelectedConnection]);
+  }, [selectedDevices, devices, connecting, connections, setDragging, setSelectedDevices, setSelectedConnection, setEditingConnection, setConnecting, setConnections, genId]);
 
   const handleConnClick = useCallback((e, id) => {
     e.stopPropagation();
