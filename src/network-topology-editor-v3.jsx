@@ -31,6 +31,12 @@ import SelectionHandles from './components/physical-layout/SelectionHandles';
 // Import auth components
 import WelcomeModal from './components/auth/WelcomeModal';
 
+// Import UI components
+import NetworkSelector from './components/ui/NetworkSelector';
+
+// Import network components
+import ReadOnlyBanner from './components/network/ReadOnlyBanner';
+
 // Import services
 import { layoutDevicesInBuilding } from './services/deviceLayoutService';
 
@@ -225,6 +231,10 @@ const NetworkTopologyEditor = () => {
 
   // Memoize theme to prevent unnecessary recalculations
   const theme = useMemo(() => getTheme(darkMode), [darkMode]);
+
+  // Check if current network is read-only
+  const isReadOnly = currentNetwork?.permission === 'view';
+  const canEdit = !isReadOnly;
 
   // Use the optimized useHistory hook
   const {
@@ -878,8 +888,9 @@ const NetworkTopologyEditor = () => {
   }, [devices]);
 
   const startConnectionFrom = useCallback((deviceId) => {
+    if (isReadOnly) return; // Prevent connection in read-only mode
     setConnecting({ from: deviceId, fromPort: '', toPort: '', startX: devices[deviceId].x, startY: devices[deviceId].y });
-  }, [devices]);
+  }, [devices, isReadOnly]);
 
   const addToSelection = useCallback((deviceId) => {
     setSelectedDevices(prev => {
@@ -1607,8 +1618,8 @@ const NetworkTopologyEditor = () => {
         {viewMode === 'physical' && <>
           <div className="w-px h-5" style={{ background: theme.border }} />
           <div className="flex rounded p-0.5 gap-0.5" style={{ background: theme.bg }}>
-            <button onClick={() => setDrawingMode(drawingMode === 'wall' ? null : 'wall')} className="p-1.5 rounded transition-colors" style={drawingMode === 'wall' ? { background: '#f97316', color: 'white' } : { color: theme.text }} onMouseEnter={(e) => drawingMode !== 'wall' && (e.currentTarget.style.background = theme.hover)} onMouseLeave={(e) => drawingMode !== 'wall' && (e.currentTarget.style.background = 'transparent')} title="Draw Wall"><Icon d="M3 21V3h18v18" s={16} /></button>
-            <button onClick={() => setDrawingMode(drawingMode === 'room' ? null : 'room')} className="p-1.5 rounded transition-colors" style={drawingMode === 'room' ? { background: '#a855f7', color: 'white' } : { color: theme.text }} onMouseEnter={(e) => drawingMode !== 'room' && (e.currentTarget.style.background = theme.hover)} onMouseLeave={(e) => drawingMode !== 'room' && (e.currentTarget.style.background = 'transparent')} title="Draw Room"><Icon d="M3 3h18v18H3zM9 3v18M15 3v18" s={16} /></button>
+            <button onClick={() => canEdit && setDrawingMode(drawingMode === 'wall' ? null : 'wall')} disabled={isReadOnly} className="p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" style={drawingMode === 'wall' ? { background: '#f97316', color: 'white' } : { color: theme.text }} onMouseEnter={(e) => drawingMode !== 'wall' && !isReadOnly && (e.currentTarget.style.background = theme.hover)} onMouseLeave={(e) => drawingMode !== 'wall' && (e.currentTarget.style.background = 'transparent')} title={isReadOnly ? "Read-only mode" : "Draw Wall"}><Icon d="M3 21V3h18v18" s={16} /></button>
+            <button onClick={() => canEdit && setDrawingMode(drawingMode === 'room' ? null : 'room')} disabled={isReadOnly} className="p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" style={drawingMode === 'room' ? { background: '#a855f7', color: 'white' } : { color: theme.text }} onMouseEnter={(e) => drawingMode !== 'room' && !isReadOnly && (e.currentTarget.style.background = theme.hover)} onMouseLeave={(e) => drawingMode !== 'room' && (e.currentTarget.style.background = 'transparent')} title={isReadOnly ? "Read-only mode" : "Draw Room"}><Icon d="M3 3h18v18H3zM9 3v18M15 3v18" s={16} /></button>
             <button onClick={() => setDrawingMode(drawingMode === 'measure' ? null : 'measure')} className="p-1.5 rounded transition-colors" style={drawingMode === 'measure' ? { background: '#ef4444', color: 'white' } : { color: theme.text }} onMouseEnter={(e) => drawingMode !== 'measure' && (e.currentTarget.style.background = theme.hover)} onMouseLeave={(e) => drawingMode !== 'measure' && (e.currentTarget.style.background = 'transparent')} title="Measure"><Icon d="M2 12h20M12 2v20" s={16} /></button>
             <button onClick={() => fileInputRef.current?.click()} className="p-1.5 rounded transition-colors" style={{ color: theme.text }} onMouseEnter={(e) => e.currentTarget.style.background = theme.hover} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'} title="Upload Floor Plan"><Icon d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M12 4v12M8 8l4-4 4 4" s={16} /></button>
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
@@ -1642,6 +1653,21 @@ const NetworkTopologyEditor = () => {
         <span className="px-2 text-xs font-medium w-12 text-center">{Math.round(portLabelScale * 100)}%</span>
         <button onClick={() => setPortLabelScale(s => Math.min(s + 0.1, 2.5))} disabled={viewMode === 'physical' && visibilityMode} className="p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" style={{ color: theme.text }} title="Grow port labels (})" onMouseEnter={(e) => !(viewMode === 'physical' && visibilityMode) && (e.currentTarget.style.background = theme.hover)} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}><Icon d="M12 5v14M5 12h14" s={16} /></button>
         <div className="flex-1" />
+
+        {/* Network Selector */}
+        <NetworkSelector
+          theme={theme}
+          onLoadNetwork={(data, networkId) => {
+            setDevices(data.devices || {});
+            setConnections(data.connections || {});
+            setVlans(data.vlans || {});
+            setBuildings(data.buildings || {});
+          }}
+          currentData={{ devices, connections, vlans, buildings }}
+          hasUnsavedChanges={false}
+        />
+
+        <div className="w-px h-5" style={{ background: theme.border }} />
         <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search..." className="w-32 px-2 py-1 rounded text-xs border" style={{ background: theme.bg, borderColor: theme.border, color: theme.text }} />
         {viewMode === 'logical' && <button onClick={() => setShowVlanPanel(!showVlanPanel)} className="px-2 py-1 rounded text-xs font-medium transition-colors" style={showVlanPanel ? { background: '#2563eb', color: 'white' } : { background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text }}>VLANs {filterVlan !== null && <span className="ml-1 px-1.5 py-0.5 rounded bg-blue-500 text-white text-xs">{filterVlan}</span>}</button>}
         <div className="w-px h-5" style={{ background: theme.border }} />
@@ -1706,6 +1732,14 @@ const NetworkTopologyEditor = () => {
           )}
         </div>
       </div>
+      {/* Read-Only Banner */}
+      {currentNetwork?.permission === 'view' && (
+        <ReadOnlyBanner
+          ownerEmail={networks.find(n => n.id === currentNetwork.id)?.owner_email || 'the owner'}
+          theme={theme}
+        />
+      )}
+
       {drawingMode && <div className="px-3 py-1.5 text-xs flex items-center gap-2" style={{ background: theme.bg, borderBottom: `1px solid ${theme.border}` }}><span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />{drawingMode === 'wall' && 'Click & drag to draw wall'}{drawingMode === 'room' && 'Click & drag to draw room'}{drawingMode === 'measure' && `Click points to measure (${measurePoints.length} pts)`}</div>}
       {visibilityMode && viewMode === 'physical' && <div className="px-3 py-1.5 text-xs flex items-center gap-2" style={{ background: '#3b82f6', color: 'white', borderBottom: `1px solid ${theme.border}` }}><span className="w-1.5 h-1.5 rounded-full bg-white" />Visibility Mode Active ({visibilityModeSize === 'small' ? 'Small' : visibilityModeSize === 'medium' ? 'Medium' : 'Large'}) - Devices maintain constant screen size</div>}
       <div className="flex-1 relative overflow-hidden">
@@ -1744,7 +1778,7 @@ const NetworkTopologyEditor = () => {
                   showMeasurements={showMeasurements}
                   measurementUnit={measurementUnit}
                   onConnClick={handleConnClick}
-                  onDoubleClick={setEditingConnection}
+                  onDoubleClick={(id) => { if (canEdit) setEditingConnection(id); }}
                   onMouseEnter={setHoveredConn}
                   onMouseLeave={() => setHoveredConn(null)}
                   onContextMenu={handleConnectionContextMenu}
@@ -1781,7 +1815,7 @@ const NetworkTopologyEditor = () => {
                   visibilityModeSize="medium"
                   zoom={zoom}
                   onMouseDown={handleDevDown}
-                  onDoubleClick={(id) => { setEditingDevice(id); setSelectedDevices(new Set([id])); }}
+                  onDoubleClick={(id) => { if (canEdit) { setEditingDevice(id); setSelectedDevices(new Set([id])); } }}
                   onContextMenu={handleDeviceContextMenu}
                 />
               ))}
@@ -1808,7 +1842,7 @@ const NetworkTopologyEditor = () => {
                       showMeasurements={showMeasurements}
                       measurementUnit={measurementUnit}
                       onConnClick={handleConnClick}
-                      onDoubleClick={setEditingConnection}
+                      onDoubleClick={(id) => { if (canEdit) setEditingConnection(id); }}
                       onMouseEnter={setHoveredConn}
                       onMouseLeave={() => setHoveredConn(null)}
                       onContextMenu={handleConnectionContextMenu}
@@ -1831,7 +1865,7 @@ const NetworkTopologyEditor = () => {
                       visibilityModeSize={visibilityModeSize}
                       zoom={zoom}
                       onMouseDown={handleDevDown}
-                      onDoubleClick={(id) => { setEditingDevice(id); setSelectedDevices(new Set([id])); }}
+                      onDoubleClick={(id) => { if (canEdit) { setEditingDevice(id); setSelectedDevices(new Set([id])); } }}
                       onContextMenu={handleDeviceContextMenu}
                     />
                   ))}
