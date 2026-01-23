@@ -81,11 +81,16 @@ export const StorageProvider = ({ children }) => {
       setCurrentNetwork({
         id: networkId,
         name: result.name,
-        permission: result.permission || 'owner'
+        permission: result.permission || 'owner',
+        version: result.version
       });
 
       setSyncStatus('synced');
-      return result.data;
+      return {
+        data: result.data,
+        version: result.version,
+        name: result.name
+      };
     } catch (error) {
       console.error('Error loading network:', error);
       setSyncStatus('error');

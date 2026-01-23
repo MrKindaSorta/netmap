@@ -69,7 +69,8 @@ export const useKeyboardShortcuts = ({
   delDevices,
   setConnections,
   handleRoomDelete,
-  handleWallDelete
+  handleWallDelete,
+  onSave
 }) => {
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -102,6 +103,14 @@ export const useKeyboardShortcuts = ({
       else if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedDevices.size > 0) {
         e.preventDefault();
         copyDevices();
+      }
+
+      // Ctrl/Cmd + S - Save
+      else if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        if (onSave) {
+          onSave();
+        }
       }
 
       // Delete/Backspace - Delete Selected

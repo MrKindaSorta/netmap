@@ -56,8 +56,8 @@ const NetworkSelector = ({ theme, onLoadNetwork, currentData, hasUnsavedChanges 
 
       // Load the newly created network
       if (onLoadNetwork) {
-        const data = await loadNetwork(result.id);
-        onLoadNetwork(data, result.id);
+        const loadedResult = await loadNetwork(result.id);
+        onLoadNetwork(loadedResult, result.id);
       }
     } catch (error) {
       if (error.message === 'UPGRADE_REQUIRED' || error.message.includes('Premium')) {
@@ -76,11 +76,11 @@ const NetworkSelector = ({ theme, onLoadNetwork, currentData, hasUnsavedChanges 
     }
 
     try {
-      const data = await loadNetwork(networkId);
+      const result = await loadNetwork(networkId);
       setIsOpen(false);
 
       if (onLoadNetwork) {
-        onLoadNetwork(data, networkId);
+        onLoadNetwork(result, networkId);
       }
     } catch (error) {
       console.error('Failed to load network:', error);

@@ -118,7 +118,7 @@ const NetworkTopologyEditor = () => {
   const { user, logout } = useAuth();
 
   // Storage context
-  const { networks, currentNetwork, loadNetwork, listNetworks, isPremium, autosaveNetwork, syncStatus } = useStorage();
+  const { networks, currentNetwork, loadNetwork, listNetworks, isPremium, saveNetwork, syncStatus } = useStorage();
 
   // Core data state (only 5 useState in main component)
   const [devices, setDevices] = useState({});
@@ -135,8 +135,10 @@ const NetworkTopologyEditor = () => {
   const [shareNetworkId, setShareNetworkId] = useState(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
-  // Auto-save state
+  // Save state
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [currentVersion, setCurrentVersion] = useState(1);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Refs
   const svgRef = useRef(null);
@@ -857,13 +859,15 @@ const NetworkTopologyEditor = () => {
         }
 
         // Load most recent network
-        const networkData = await loadNetwork(userNetworks[0].id);
+        const result = await loadNetwork(userNetworks[0].id);
 
         // Set network data
-        setDevices(networkData.devices || {});
-        setConnections(networkData.connections || {});
-        setVlans(networkData.vlans || {});
-        setBuildings(networkData.buildings || {});
+        setDevices(result.data.devices || {});
+        setConnections(result.data.connections || {});
+        setVlans(result.data.vlans || {});
+        setBuildings(result.data.buildings || {});
+        setCurrentVersion(result.version);
+        setHasUnsavedChanges(false);
       } catch (error) {
         console.error('Error loading network:', error);
         // On error, show welcome modal
@@ -888,28 +892,35 @@ const NetworkTopologyEditor = () => {
     }
   }, [devices, connections, vlans, buildings, currentNetwork]);
 
-  // Auto-save with debouncing (3 second delay)
-  useEffect(() => {
+  // Manual save handler
+  const handleSaveNetwork = useCallback(async () => {
     if (!currentNetwork || !hasUnsavedChanges || isReadOnly || !isPremium) {
       return;
     }
 
-    const timer = setTimeout(async () => {
-      try {
-        await autosaveNetwork(currentNetwork.id, {
-          devices,
-          connections,
-          vlans,
-          buildings
-        });
-        setHasUnsavedChanges(false);
-      } catch (error) {
-        console.error('Auto-save failed:', error);
-      }
-    }, 3000); // 3 second debounce
+    setIsSaving(true);
+    try {
+      const result = await saveNetwork(
+        currentNetwork.id,
+        { devices, connections, vlans, buildings },
+        currentVersion,
+        'Manual save'
+      );
 
-    return () => clearTimeout(timer);
-  }, [devices, connections, vlans, buildings, hasUnsavedChanges, currentNetwork, isReadOnly, isPremium, autosaveNetwork]);
+      // Update version and clear unsaved flag
+      setCurrentVersion(result.version);
+      setHasUnsavedChanges(false);
+    } catch (error) {
+      console.error('Save failed:', error);
+      if (error.message.includes('conflict')) {
+        alert('Version conflict! Someone else modified this network. Please reload.');
+      } else {
+        alert('Failed to save changes. Please try again.');
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  }, [currentNetwork, hasUnsavedChanges, isReadOnly, isPremium, saveNetwork, devices, connections, vlans, buildings, currentVersion]);
 
   // Use the extended useFiltering hook
   const { filteredDevs, filteredConns } = useFiltering(
@@ -1288,7 +1299,8 @@ const NetworkTopologyEditor = () => {
     undo, redo,
     duplicateSelected, copyDevices, delDevices,
     setConnections,
-    handleRoomDelete, handleWallDelete
+    handleRoomDelete, handleWallDelete,
+    onSave: handleSaveNetwork // Add Ctrl+S shortcut
   });
 
   const exportData = () => {
@@ -1707,11 +1719,12 @@ const NetworkTopologyEditor = () => {
         {/* Network Selector */}
         <NetworkSelector
           theme={theme}
-          onLoadNetwork={(data, networkId) => {
-            setDevices(data.devices || {});
-            setConnections(data.connections || {});
-            setVlans(data.vlans || {});
-            setBuildings(data.buildings || {});
+          onLoadNetwork={(result, networkId) => {
+            setDevices(result.data.devices || {});
+            setConnections(result.data.connections || {});
+            setVlans(result.data.vlans || {});
+            setBuildings(result.data.buildings || {});
+            setCurrentVersion(result.version);
             setHasUnsavedChanges(false);
           }}
           currentData={{ devices, connections, vlans, buildings }}
@@ -1727,6 +1740,24 @@ const NetworkTopologyEditor = () => {
         <div className="w-px h-5" style={{ background: theme.border }} />
         <label className="px-2 py-1 rounded text-xs font-medium cursor-pointer transition-colors" style={{ color: theme.text }} onMouseEnter={(e) => e.currentTarget.style.background = theme.hover} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>Import<input type="file" accept=".json" onChange={importData} className="hidden" /></label>
         <button onClick={exportData} className="px-2 py-1 rounded text-xs font-medium bg-blue-600 text-white">Export</button>
+
+        {/* Save Button (only show when unsaved changes and can edit) */}
+        {hasUnsavedChanges && canEdit && currentNetwork && isPremium && (
+          <button
+            onClick={handleSaveNetwork}
+            disabled={isSaving}
+            className="px-3 py-1.5 rounded text-xs font-medium flex items-center gap-1.5 transition-colors"
+            style={{
+              background: isSaving ? '#9ca3af' : '#10b981',
+              color: 'white',
+              cursor: isSaving ? 'not-allowed' : 'pointer'
+            }}
+            title="Save changes to cloud (Ctrl+S)"
+          >
+            <Icon d={isSaving ? "M3 15a9 9 0 0118 0M12 20l-3-3m6 0l-3 3" : "M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"} s={14} />
+            {isSaving ? 'Saving...' : 'Save'}
+          </button>
+        )}
 
         {/* Share Button (owner and editors only) */}
         {currentNetwork && currentNetwork.permission !== 'view' && isPremium && (
