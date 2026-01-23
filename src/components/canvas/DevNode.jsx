@@ -49,7 +49,6 @@ const DevNode = ({
       onDoubleClick={() => onDoubleClick(d.id)}
       onContextMenu={(e) => onContextMenu(e, d.id)}
       style={{ cursor: isLocked ? 'default' : 'move' }}
-      opacity={opacity}
     >
       {/* Pulsing glow when highlighted */}
       {isHighlighted && (
@@ -104,6 +103,7 @@ const DevNode = ({
         fill={isSelected ? col : theme.surface}
         stroke={col}
         strokeWidth={isSelected ? 3 : 2}
+        opacity={opacity}
       />
 
       {/* Status indicator */}
@@ -114,10 +114,11 @@ const DevNode = ({
         fill={stCol}
         stroke={theme.surface}
         strokeWidth="1.5"
+        opacity={opacity}
       />
 
       {/* Device icon */}
-      <g style={{ color: isSelected ? '#fff' : col }}>
+      <g style={{ color: isSelected ? '#fff' : col }} opacity={opacity}>
         <svg
           x={-sz / 3}
           y={-sz / 1.8}
@@ -136,7 +137,7 @@ const DevNode = ({
 
       {/* Labels (only show if not in path or if highlighted) */}
       {(!highlightedPath || isHighlighted) && (
-        <>
+        <g opacity={opacity}>
           {/* Device name */}
           <text
             y={sz * 0.55}
@@ -179,7 +180,7 @@ const DevNode = ({
               </text>
             </g>
           )}
-        </>
+        </g>
       )}
     </g>
   );

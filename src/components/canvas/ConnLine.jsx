@@ -51,7 +51,6 @@ const ConnLine = ({
       onMouseLeave={() => onMouseLeave()}
       onContextMenu={(e) => onContextMenu(e, c.id)}
       style={{ cursor: 'pointer' }}
-      opacity={opacity}
     >
       <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="transparent" strokeWidth="14" />
 
@@ -64,7 +63,7 @@ const ConnLine = ({
       )}
 
       {(isSelected || isHovered) && (
-        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={st.color} strokeWidth="8" opacity="0.2" />
+        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={st.color} strokeWidth="8" opacity={opacity * 0.2} />
       )}
 
       <line
@@ -75,12 +74,12 @@ const ConnLine = ({
         stroke={isHighlighted ? st.color : (isSelected || isHovered ? '#3b82f6' : st.color)}
         strokeWidth={isHighlighted ? 4 : (c.type === 'lacp' ? 4 : 2)}
         strokeDasharray={st.dash}
-        opacity={isHighlighted ? 1 : undefined}
+        opacity={isHighlighted ? 1 : opacity}
       />
 
       {/* From port label */}
       {!isPhysical && (c.fromPort || isHovered) && (!highlightedPath || isHighlighted) && (
-        <g transform={`translate(${x1 + (x2 - x1) * offset}, ${y1 + (y2 - y1) * offset})`}>
+        <g transform={`translate(${x1 + (x2 - x1) * offset}, ${y1 + (y2 - y1) * offset})`} opacity={opacity}>
           <rect
             x={-18 * portLabelScale}
             y="-9"
@@ -105,7 +104,7 @@ const ConnLine = ({
 
       {/* To port label */}
       {!isPhysical && (c.toPort || isHovered) && (!highlightedPath || isHighlighted) && (
-        <g transform={`translate(${x2 - (x2 - x1) * offset}, ${y2 - (y2 - y1) * offset})`}>
+        <g transform={`translate(${x2 - (x2 - x1) * offset}, ${y2 - (y2 - y1) * offset})`} opacity={opacity}>
           <rect
             x={-18 * portLabelScale}
             y="-9"
@@ -130,7 +129,7 @@ const ConnLine = ({
 
       {/* Speed badge */}
       {!isPhysical && c.speed && (
-        <g transform={`translate(${mx},${my})`}>
+        <g transform={`translate(${mx},${my})`} opacity={opacity}>
           <rect x="-14" y="-8" width="28" height="14" fill={st.color} rx="7" />
           <text textAnchor="middle" y="3" fontSize="8" fill="white" fontWeight="600">
             {c.speed}
@@ -140,7 +139,7 @@ const ConnLine = ({
 
       {/* VLANs on hover */}
       {!isPhysical && isHovered && c.vlans?.length > 0 && (
-        <g transform={`translate(${mx}, ${my + 20})`}>
+        <g transform={`translate(${mx}, ${my + 20})`} opacity={opacity}>
           <rect
             x={-c.vlans.length * 14}
             y="-8"
@@ -158,7 +157,7 @@ const ConnLine = ({
 
       {/* Cable length in physical view */}
       {isPhysical && showMeasurements && c.cableLength > 0 && (
-        <g transform={`translate(${mx},${my})`}>
+        <g transform={`translate(${mx},${my})`} opacity={opacity}>
           <rect x="-20" y="-8" width="40" height="14" fill={theme.surface} stroke={st.color} rx="4" />
           <text textAnchor="middle" y="3" fontSize="8" fill={theme.text}>
             {c.cableLength}{getUnit()}
