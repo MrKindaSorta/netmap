@@ -33,9 +33,15 @@ import WelcomeModal from './components/auth/WelcomeModal';
 
 // Import UI components
 import NetworkSelector from './components/ui/NetworkSelector';
+import SyncStatus from './components/ui/SyncStatus';
 
 // Import network components
 import ReadOnlyBanner from './components/network/ReadOnlyBanner';
+import ShareNetworkModal from './components/network/ShareNetworkModal';
+
+// Import user components
+import UserSettingsPanel from './components/user/UserSettingsPanel';
+import UpgradeModal from './components/user/UpgradeModal';
 
 // Import services
 import { layoutDevicesInBuilding } from './services/deviceLayoutService';
@@ -112,7 +118,7 @@ const NetworkTopologyEditor = () => {
   const { user, logout } = useAuth();
 
   // Storage context
-  const { networks, currentNetwork, loadNetwork, listNetworks, isPremium } = useStorage();
+  const { networks, currentNetwork, loadNetwork, listNetworks, isPremium, autosaveNetwork, syncStatus } = useStorage();
 
   // Core data state (only 5 useState in main component)
   const [devices, setDevices] = useState({});
@@ -121,9 +127,16 @@ const NetworkTopologyEditor = () => {
   const [buildings, setBuildings] = useState({});
   const [interBuildingLinks, setInterBuildingLinks] = useState([]);
 
-  // Welcome modal state
+  // Modal states
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showUserSettings, setShowUserSettings] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareNetworkId, setShareNetworkId] = useState(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  // Auto-save state
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Refs
   const svgRef = useRef(null);
@@ -860,6 +873,43 @@ const NetworkTopologyEditor = () => {
 
     initNetwork();
   }, []); // Run once on mount
+
+  // Listen for upgrade modal trigger
+  useEffect(() => {
+    const handleOpenUpgradeModal = () => setShowUpgradeModal(true);
+    window.addEventListener('openUpgradeModal', handleOpenUpgradeModal);
+    return () => window.removeEventListener('openUpgradeModal', handleOpenUpgradeModal);
+  }, []);
+
+  // Mark as changed when data changes
+  useEffect(() => {
+    if (currentNetwork) {
+      setHasUnsavedChanges(true);
+    }
+  }, [devices, connections, vlans, buildings, currentNetwork]);
+
+  // Auto-save with debouncing (3 second delay)
+  useEffect(() => {
+    if (!currentNetwork || !hasUnsavedChanges || isReadOnly || !isPremium) {
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        await autosaveNetwork(currentNetwork.id, {
+          devices,
+          connections,
+          vlans,
+          buildings
+        });
+        setHasUnsavedChanges(false);
+      } catch (error) {
+        console.error('Auto-save failed:', error);
+      }
+    }, 3000); // 3 second debounce
+
+    return () => clearTimeout(timer);
+  }, [devices, connections, vlans, buildings, hasUnsavedChanges, currentNetwork, isReadOnly, isPremium, autosaveNetwork]);
 
   // Use the extended useFiltering hook
   const { filteredDevs, filteredConns } = useFiltering(
@@ -1662,10 +1712,14 @@ const NetworkTopologyEditor = () => {
             setConnections(data.connections || {});
             setVlans(data.vlans || {});
             setBuildings(data.buildings || {});
+            setHasUnsavedChanges(false);
           }}
           currentData={{ devices, connections, vlans, buildings }}
-          hasUnsavedChanges={false}
+          hasUnsavedChanges={hasUnsavedChanges}
         />
+
+        {/* Sync Status Indicator */}
+        <SyncStatus theme={theme} />
 
         <div className="w-px h-5" style={{ background: theme.border }} />
         <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search..." className="w-32 px-2 py-1 rounded text-xs border" style={{ background: theme.bg, borderColor: theme.border, color: theme.text }} />
@@ -1673,6 +1727,25 @@ const NetworkTopologyEditor = () => {
         <div className="w-px h-5" style={{ background: theme.border }} />
         <label className="px-2 py-1 rounded text-xs font-medium cursor-pointer transition-colors" style={{ color: theme.text }} onMouseEnter={(e) => e.currentTarget.style.background = theme.hover} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>Import<input type="file" accept=".json" onChange={importData} className="hidden" /></label>
         <button onClick={exportData} className="px-2 py-1 rounded text-xs font-medium bg-blue-600 text-white">Export</button>
+
+        {/* Share Button (owner and editors only) */}
+        {currentNetwork && currentNetwork.permission !== 'view' && isPremium && (
+          <button
+            onClick={() => {
+              setShareNetworkId(currentNetwork.id);
+              setShowShareModal(true);
+            }}
+            className="px-2 py-1 rounded text-xs font-medium flex items-center gap-1.5 transition-colors"
+            style={{ background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text }}
+            onMouseEnter={(e) => e.currentTarget.style.background = theme.hover}
+            onMouseLeave={(e) => e.currentTarget.style.background = theme.bg}
+            title="Share this network"
+          >
+            <Icon d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" s={14} />
+            Share
+          </button>
+        )}
+
         <button
           onClick={() => setAiChatOpen(!aiChatOpen)}
           className="px-3 py-1.5 rounded text-xs font-medium flex items-center gap-1.5 transition-colors"
@@ -1717,14 +1790,44 @@ const NetworkTopologyEditor = () => {
               <div className="p-1">
                 <button
                   onClick={() => {
-                    logout();
+                    setShowUserSettings(true);
                     setShowUserMenu(false);
                   }}
-                  className="w-full text-left px-3 py-2 text-sm rounded transition-colors"
+                  className="w-full text-left px-3 py-2 text-sm rounded transition-colors flex items-center gap-2"
                   style={{ color: theme.text }}
                   onMouseEnter={(e) => e.currentTarget.style.background = theme.hover}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
+                  <Icon d="M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" s={14} />
+                  Settings
+                </button>
+                {user?.subscription_tier === 'free' && (
+                  <button
+                    onClick={() => {
+                      setShowUpgradeModal(true);
+                      setShowUserMenu(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm rounded transition-colors flex items-center gap-2"
+                    style={{ color: '#3b82f6' }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = theme.hover}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <span className="text-base">⭐</span>
+                    Upgrade to Premium
+                  </button>
+                )}
+                <div className="border-t my-1" style={{ borderColor: theme.border }} />
+                <button
+                  onClick={() => {
+                    logout();
+                    setShowUserMenu(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm rounded transition-colors flex items-center gap-2"
+                  style={{ color: theme.text }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = theme.hover}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  <Icon d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" s={14} />
                   Sign Out
                 </button>
               </div>
@@ -2056,6 +2159,33 @@ const NetworkTopologyEditor = () => {
             // Network created successfully - it should already be loaded in context
             setShowWelcomeModal(false);
           }}
+          theme={theme}
+        />
+      )}
+      {showUserSettings && (
+        <UserSettingsPanel
+          onClose={() => setShowUserSettings(false)}
+          theme={theme}
+          onOpenShareModal={(networkId) => {
+            setShareNetworkId(networkId);
+            setShowShareModal(true);
+          }}
+        />
+      )}
+      {showShareModal && shareNetworkId && (
+        <ShareNetworkModal
+          networkId={shareNetworkId}
+          networkName={networks.find(n => n.id === shareNetworkId)?.name || 'Network'}
+          onClose={() => {
+            setShowShareModal(false);
+            setShareNetworkId(null);
+          }}
+          theme={theme}
+        />
+      )}
+      {showUpgradeModal && (
+        <UpgradeModal
+          onClose={() => setShowUpgradeModal(false)}
           theme={theme}
         />
       )}
