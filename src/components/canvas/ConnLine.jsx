@@ -194,7 +194,8 @@ const areEqual = (prevProps, nextProps) => {
     prevProps.isPhysical === nextProps.isPhysical &&
     prevProps.showMeasurements === nextProps.showMeasurements &&
     prevProps.measurementUnit === nextProps.measurementUnit &&
-    prevProps.theme === nextProps.theme
+    prevProps.theme === nextProps.theme &&
+    (!prevProps.highlightedPath && !nextProps.highlightedPath)
   );
 };
 

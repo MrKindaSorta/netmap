@@ -214,8 +214,7 @@ const areEqual = (prevProps, nextProps) => {
     prevProps.visibilityModeSize === nextProps.visibilityModeSize &&
     prevProps.zoom === nextProps.zoom &&
     prevProps.theme === nextProps.theme &&
-    (prevProps.highlightedPath === nextProps.highlightedPath ||
-      (prevProps.highlightedPath?.devices.has(d1.id) === nextProps.highlightedPath?.devices.has(d2.id)))
+    (!prevProps.highlightedPath && !nextProps.highlightedPath)
   );
 };
 
