@@ -866,6 +866,16 @@ const NetworkTopologyEditor = () => {
         setConnections(result.data.connections || {});
         setVlans(result.data.vlans || {});
         setBuildings(result.data.buildings || {});
+
+        // Load view state if present
+        if (result.data.viewState) {
+          if (result.data.viewState.zoom !== undefined) setZoom(result.data.viewState.zoom);
+          if (result.data.viewState.pan !== undefined) setPan(result.data.viewState.pan);
+          if (result.data.viewState.circleScale !== undefined) setCircleScale(result.data.viewState.circleScale);
+          if (result.data.viewState.deviceLabelScale !== undefined) setDeviceLabelScale(result.data.viewState.deviceLabelScale);
+          if (result.data.viewState.portLabelScale !== undefined) setPortLabelScale(result.data.viewState.portLabelScale);
+        }
+
         setCurrentVersion(result.version);
         setHasUnsavedChanges(false);
       } catch (error) {
@@ -902,7 +912,19 @@ const NetworkTopologyEditor = () => {
     try {
       const result = await saveNetwork(
         currentNetwork.id,
-        { devices, connections, vlans, buildings },
+        {
+          devices,
+          connections,
+          vlans,
+          buildings,
+          viewState: {
+            zoom,
+            pan,
+            circleScale,
+            deviceLabelScale,
+            portLabelScale
+          }
+        },
         currentVersion,
         'Manual save'
       );
@@ -1304,7 +1326,22 @@ const NetworkTopologyEditor = () => {
   });
 
   const exportData = () => {
-    const d = { devices, connections, vlans, buildings, interBuildingLinks, v: '3.1', t: new Date().toISOString() };
+    const d = {
+      devices,
+      connections,
+      vlans,
+      buildings,
+      interBuildingLinks,
+      viewState: {
+        zoom,
+        pan,
+        circleScale,
+        deviceLabelScale,
+        portLabelScale
+      },
+      v: '4.1',
+      t: new Date().toISOString()
+    };
     const b = new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'network-topology.json'; a.click();
   };
@@ -1330,6 +1367,15 @@ const NetworkTopologyEditor = () => {
           if (d.vlans) setVlans(d.vlans);
           if (d.buildings) setBuildings(d.buildings);
           if (d.interBuildingLinks) setInterBuildingLinks(d.interBuildingLinks);
+
+          // Load view state if present
+          if (d.viewState) {
+            if (d.viewState.zoom !== undefined) setZoom(d.viewState.zoom);
+            if (d.viewState.pan !== undefined) setPan(d.viewState.pan);
+            if (d.viewState.circleScale !== undefined) setCircleScale(d.viewState.circleScale);
+            if (d.viewState.deviceLabelScale !== undefined) setDeviceLabelScale(d.viewState.deviceLabelScale);
+            if (d.viewState.portLabelScale !== undefined) setPortLabelScale(d.viewState.portLabelScale);
+          }
         } catch (err) {
           console.error('Import failed:', err);
         }
@@ -1724,6 +1770,16 @@ const NetworkTopologyEditor = () => {
             setConnections(result.data.connections || {});
             setVlans(result.data.vlans || {});
             setBuildings(result.data.buildings || {});
+
+            // Load view state if present
+            if (result.data.viewState) {
+              if (result.data.viewState.zoom !== undefined) setZoom(result.data.viewState.zoom);
+              if (result.data.viewState.pan !== undefined) setPan(result.data.viewState.pan);
+              if (result.data.viewState.circleScale !== undefined) setCircleScale(result.data.viewState.circleScale);
+              if (result.data.viewState.deviceLabelScale !== undefined) setDeviceLabelScale(result.data.viewState.deviceLabelScale);
+              if (result.data.viewState.portLabelScale !== undefined) setPortLabelScale(result.data.viewState.portLabelScale);
+            }
+
             setCurrentVersion(result.version);
             setHasUnsavedChanges(false);
           }}
