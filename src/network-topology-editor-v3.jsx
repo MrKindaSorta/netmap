@@ -28,6 +28,9 @@ import { BuildingModal, RoomModal, WallModal } from './components/building-confi
 import EmptyStatePanel from './components/physical-layout/EmptyStatePanel';
 import SelectionHandles from './components/physical-layout/SelectionHandles';
 
+// Import auth components
+import WelcomeModal from './components/auth/WelcomeModal';
+
 // Import services
 import { layoutDevicesInBuilding } from './services/deviceLayoutService';
 
@@ -94,39 +97,27 @@ import {
   useUIState
 } from './hooks';
 
+// Import contexts
+import { useAuth } from './contexts/AuthContext';
+import { useStorage } from './contexts/StorageContext';
+
 const NetworkTopologyEditor = () => {
+  // Auth context
+  const { user, logout } = useAuth();
+
+  // Storage context
+  const { networks, currentNetwork, loadNetwork, listNetworks, isPremium } = useStorage();
+
   // Core data state (only 5 useState in main component)
-  const [devices, setDevices] = useState({
-    'dev-1': { id: 'dev-1', name: 'KSP-BP-MX85', type: 'firewall', ip: '10.0.10.1', mac: 'f8:9e:28:85:b2:4c', x: 400, y: 60, physicalX: 150, physicalY: 120, buildingId: 'bldg-1', floor: 1, notes: 'Meraki MX85 Gateway', isRoot: false, status: 'up', vlans: [1] },
-    'dev-2': { id: 'dev-2', name: 'KSP-BP-MDF', type: 'core', ip: '10.0.10.254', mac: 'a4:9b:cd:83:15:85', x: 400, y: 180, physicalX: 150, physicalY: 180, buildingId: 'bldg-1', floor: 1, notes: 'Cisco CBS350-48FP-4G', isRoot: true, status: 'up', vlans: [1, 20, 25, 30, 60, 80] },
-    'dev-3': { id: 'dev-3', name: 'KSP-MDF-SW2', type: 'switch', ip: '10.0.10.157', mac: '9c:e3:30:f2:7c:b0', x: 150, y: 300, physicalX: 400, physicalY: 150, buildingId: 'bldg-1', floor: 1, notes: 'Meraki MS350-48FP', isRoot: false, status: 'up', vlans: [1, 2002, 2003] },
-    'dev-4': { id: 'dev-4', name: 'KSP-BP-IDF1', type: 'switch', ip: '10.0.10.253', mac: 'a4:9b:cd:82:f1:39', x: 650, y: 300, physicalX: 480, physicalY: 280, buildingId: 'bldg-1', floor: 1, notes: 'Cisco CBS350-48FP-4G', isRoot: false, status: 'up', vlans: [1, 20, 25, 60] },
-    'dev-5': { id: 'dev-5', name: 'KSP-BP-IDF2', type: 'switch', ip: '10.0.10.252', mac: 'a4:9b:cd:82:ed:4a', x: 500, y: 420, physicalX: 150, physicalY: 350, buildingId: 'bldg-1', floor: 1, notes: 'Loop: gi16-gi17', isRoot: false, status: 'warning', vlans: [1, 20, 80] },
-    'dev-6': { id: 'dev-6', name: 'Warehouse-IDF', type: 'switch', ip: '10.0.10.36', mac: 'e0:63:da:e0:b0:ec', x: 350, y: 540, physicalX: 150, physicalY: 150, buildingId: 'bldg-2', floor: 1, notes: 'Warehouse switch', isRoot: false, status: 'up', vlans: [1, 20] },
-  });
-
-  const [connections, setConnections] = useState({
-    'conn-1': { id: 'conn-1', from: 'dev-1', to: 'dev-2', fromPort: 'GbE5', toPort: 'gi47', type: 'trunk', speed: '1G', vlans: [1], cableType: 'cat6', cableLength: 3 },
-    'conn-2': { id: 'conn-2', from: 'dev-2', to: 'dev-3', fromPort: 'gi2', toPort: 'gi1', type: 'trunk', speed: '1G', vlans: [1, 2002, 2003], cableType: 'cat6', cableLength: 15 },
-    'conn-3': { id: 'conn-3', from: 'dev-2', to: 'dev-4', fromPort: 'gi50', toPort: 'gi49', type: 'trunk', speed: '1G', vlans: [1, 20, 25, 60], cableType: 'cat6', cableLength: 45 },
-    'conn-4': { id: 'conn-4', from: 'dev-2', to: 'dev-5', fromPort: 'gi49', toPort: 'gi49', type: 'trunk', speed: '1G', vlans: [1, 20, 80], cableType: 'cat6', cableLength: 30 },
-    'conn-5': { id: 'conn-5', from: 'dev-2', to: 'dev-6', fromPort: 'gi48', toPort: 'gi1', type: 'fiber', speed: '10G', vlans: [1, 20], cableType: 'smf', cableLength: 150 },
-  });
-
-  const [vlans, setVlans] = useState({
-    1: { id: 1, name: 'Default', subnet: '10.0.10.0/24', gateway: '10.0.10.1', color: '#3b82f6', description: 'Management' },
-    20: { id: 20, name: 'Warehouse', subnet: '10.0.20.0/24', gateway: '10.0.20.1', color: '#10b981', description: 'Warehouse Systems' },
-    25: { id: 25, name: 'Polycom', subnet: '10.0.25.0/24', gateway: '10.0.25.1', color: '#8b5cf6', description: 'VoIP Phones' },
-    30: { id: 30, name: 'HandHelds', subnet: '10.0.30.0/24', gateway: '10.0.30.1', color: '#f97316', description: 'Mobile Devices' },
-    60: { id: 60, name: 'Wireless', subnet: '10.0.60.0/24', gateway: '10.0.60.1', color: '#06b6d4', description: 'AP Management' },
-    80: { id: 80, name: 'Cameras', subnet: '10.0.80.0/24', gateway: '10.0.80.1', color: '#ec4899', description: 'Security Cameras' },
-    2002: { id: 2002, name: 'LocusBot', subnet: '10.20.2.0/24', gateway: '10.20.2.1', color: '#eab308', description: 'Locus Robot Comm' },
-    2003: { id: 2003, name: 'LocusApp', subnet: '10.20.3.0/24', gateway: '10.20.3.1', color: '#ef4444', description: 'Locus App Traffic' },
-  });
-
+  const [devices, setDevices] = useState({});
+  const [connections, setConnections] = useState({});
+  const [vlans, setVlans] = useState({});
   const [buildings, setBuildings] = useState({});
-
   const [interBuildingLinks, setInterBuildingLinks] = useState([]);
+
+  // Welcome modal state
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   // Refs
   const svgRef = useRef(null);
@@ -828,6 +819,37 @@ const NetworkTopologyEditor = () => {
 
   // Auto-save history on state changes
   useEffect(() => { const t = setTimeout(saveHistory, 600); return () => clearTimeout(t); }, [devices, connections, buildings, saveHistory]);
+
+  // Load networks on mount
+  useEffect(() => {
+    const initNetwork = async () => {
+      try {
+        // List user's networks
+        const userNetworks = await listNetworks();
+
+        if (userNetworks.length === 0) {
+          // No networks - show welcome modal
+          setShowWelcomeModal(true);
+          return;
+        }
+
+        // Load most recent network
+        const networkData = await loadNetwork(userNetworks[0].id);
+
+        // Set network data
+        setDevices(networkData.devices || {});
+        setConnections(networkData.connections || {});
+        setVlans(networkData.vlans || {});
+        setBuildings(networkData.buildings || {});
+      } catch (error) {
+        console.error('Error loading network:', error);
+        // On error, show welcome modal
+        setShowWelcomeModal(true);
+      }
+    };
+
+    initNetwork();
+  }, []); // Run once on mount
 
   // Use the extended useFiltering hook
   const { filteredDevs, filteredConns } = useFiltering(
@@ -1639,6 +1661,50 @@ const NetworkTopologyEditor = () => {
           <Icon d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" s={14} />
           <span>AI Chat</span>
         </button>
+
+        {/* User Menu */}
+        <div className="relative">
+          <button
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            className="px-2 py-1.5 rounded text-xs font-medium flex items-center gap-1.5 transition-colors"
+            style={{ background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text }}
+            onMouseEnter={(e) => e.currentTarget.style.background = theme.hover}
+            onMouseLeave={(e) => e.currentTarget.style.background = theme.bg}
+            title={user?.email}
+          >
+            <Icon d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" s={14} />
+            <span>{user?.email?.split('@')[0]}</span>
+          </button>
+
+          {/* User Menu Dropdown */}
+          {showUserMenu && (
+            <div
+              className="absolute right-0 mt-1 w-56 rounded-lg shadow-lg z-50"
+              style={{ background: theme.surface, border: `1px solid ${theme.border}` }}
+            >
+              <div className="p-3 border-b" style={{ borderColor: theme.border }}>
+                <div className="text-sm font-medium" style={{ color: theme.text }}>{user?.email}</div>
+                <div className="text-xs mt-1" style={{ color: theme.textSecondary }}>
+                  {user?.subscription_tier === 'premium' ? '⭐ Premium' : 'Free Tier'}
+                </div>
+              </div>
+              <div className="p-1">
+                <button
+                  onClick={() => {
+                    logout();
+                    setShowUserMenu(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm rounded transition-colors"
+                  style={{ color: theme.text }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = theme.hover}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
       {drawingMode && <div className="px-3 py-1.5 text-xs flex items-center gap-2" style={{ background: theme.bg, borderBottom: `1px solid ${theme.border}` }}><span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />{drawingMode === 'wall' && 'Click & drag to draw wall'}{drawingMode === 'room' && 'Click & drag to draw room'}{drawingMode === 'measure' && `Click points to measure (${measurePoints.length} pts)`}</div>}
       {visibilityMode && viewMode === 'physical' && <div className="px-3 py-1.5 text-xs flex items-center gap-2" style={{ background: '#3b82f6', color: 'white', borderBottom: `1px solid ${theme.border}` }}><span className="w-1.5 h-1.5 rounded-full bg-white" />Visibility Mode Active ({visibilityModeSize === 'small' ? 'Small' : visibilityModeSize === 'medium' ? 'Medium' : 'Large'}) - Devices maintain constant screen size</div>}
@@ -1946,6 +2012,16 @@ const NetworkTopologyEditor = () => {
           onClose={() => setEditingWall(null)}
           onSave={handleWallSave}
           onDelete={handleWallDelete}
+          theme={theme}
+        />
+      )}
+      {showWelcomeModal && (
+        <WelcomeModal
+          onClose={() => setShowWelcomeModal(false)}
+          onNetworkCreated={(network) => {
+            // Network created successfully - it should already be loaded in context
+            setShowWelcomeModal(false);
+          }}
           theme={theme}
         />
       )}
