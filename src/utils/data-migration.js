@@ -416,8 +416,6 @@ export const migrateNetworkData = (data) => {
   // Ensure viewState exists (for backward compatibility)
   if (!data.viewState) {
     data.viewState = {
-      zoom: 1,
-      pan: { x: 0, y: 0 },
       circleScale: 1,
       deviceLabelScale: 1,
       portLabelScale: 1

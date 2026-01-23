@@ -869,8 +869,6 @@ const NetworkTopologyEditor = () => {
 
         // Load view state if present
         if (result.data.viewState) {
-          if (result.data.viewState.zoom !== undefined) setZoom(result.data.viewState.zoom);
-          if (result.data.viewState.pan !== undefined) setPan(result.data.viewState.pan);
           if (result.data.viewState.circleScale !== undefined) setCircleScale(result.data.viewState.circleScale);
           if (result.data.viewState.deviceLabelScale !== undefined) setDeviceLabelScale(result.data.viewState.deviceLabelScale);
           if (result.data.viewState.portLabelScale !== undefined) setPortLabelScale(result.data.viewState.portLabelScale);
@@ -900,7 +898,7 @@ const NetworkTopologyEditor = () => {
     if (currentNetwork) {
       setHasUnsavedChanges(true);
     }
-  }, [devices, connections, vlans, buildings, currentNetwork]);
+  }, [devices, connections, vlans, buildings, currentNetwork, circleScale, deviceLabelScale, portLabelScale]);
 
   // Manual save handler
   const handleSaveNetwork = useCallback(async () => {
@@ -918,8 +916,6 @@ const NetworkTopologyEditor = () => {
           vlans,
           buildings,
           viewState: {
-            zoom,
-            pan,
             circleScale,
             deviceLabelScale,
             portLabelScale
@@ -942,7 +938,7 @@ const NetworkTopologyEditor = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [currentNetwork, hasUnsavedChanges, isReadOnly, isPremium, saveNetwork, devices, connections, vlans, buildings, currentVersion]);
+  }, [currentNetwork, hasUnsavedChanges, isReadOnly, isPremium, saveNetwork, devices, connections, vlans, buildings, currentVersion, circleScale, deviceLabelScale, portLabelScale]);
 
   // Use the extended useFiltering hook
   const { filteredDevs, filteredConns } = useFiltering(
@@ -1333,8 +1329,6 @@ const NetworkTopologyEditor = () => {
       buildings,
       interBuildingLinks,
       viewState: {
-        zoom,
-        pan,
         circleScale,
         deviceLabelScale,
         portLabelScale
@@ -1370,8 +1364,6 @@ const NetworkTopologyEditor = () => {
 
           // Load view state if present
           if (d.viewState) {
-            if (d.viewState.zoom !== undefined) setZoom(d.viewState.zoom);
-            if (d.viewState.pan !== undefined) setPan(d.viewState.pan);
             if (d.viewState.circleScale !== undefined) setCircleScale(d.viewState.circleScale);
             if (d.viewState.deviceLabelScale !== undefined) setDeviceLabelScale(d.viewState.deviceLabelScale);
             if (d.viewState.portLabelScale !== undefined) setPortLabelScale(d.viewState.portLabelScale);
@@ -1773,8 +1765,6 @@ const NetworkTopologyEditor = () => {
 
             // Load view state if present
             if (result.data.viewState) {
-              if (result.data.viewState.zoom !== undefined) setZoom(result.data.viewState.zoom);
-              if (result.data.viewState.pan !== undefined) setPan(result.data.viewState.pan);
               if (result.data.viewState.circleScale !== undefined) setCircleScale(result.data.viewState.circleScale);
               if (result.data.viewState.deviceLabelScale !== undefined) setDeviceLabelScale(result.data.viewState.deviceLabelScale);
               if (result.data.viewState.portLabelScale !== undefined) setPortLabelScale(result.data.viewState.portLabelScale);
