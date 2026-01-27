@@ -2468,9 +2468,31 @@ const NetworkTopologyEditor = () => {
       {showWelcomeModal && (
         <WelcomeModal
           onClose={() => setShowWelcomeModal(false)}
-          onNetworkCreated={(network) => {
-            // Network created successfully - it should already be loaded in context
-            setShowWelcomeModal(false);
+          onNetworkCreated={async (network) => {
+            // Load the newly created network to sync editor state
+            try {
+              const result = await loadNetwork(network.id);
+
+              // Set network data
+              setDevices(result.data.devices || {});
+              setConnections(result.data.connections || {});
+              setVlans(result.data.vlans || {});
+              setBuildings(result.data.buildings || {});
+
+              // Load view state if present
+              if (result.data.viewState) {
+                if (result.data.viewState.circleScale !== undefined) setCircleScale(result.data.viewState.circleScale);
+                if (result.data.viewState.deviceLabelScale !== undefined) setDeviceLabelScale(result.data.viewState.deviceLabelScale);
+                if (result.data.viewState.portLabelScale !== undefined) setPortLabelScale(result.data.viewState.portLabelScale);
+              }
+
+              setCurrentVersion(result.version);
+              setHasUnsavedChanges(false);
+              setShowWelcomeModal(false);
+            } catch (error) {
+              console.error('Error loading newly created network:', error);
+              setShowWelcomeModal(false);
+            }
           }}
           theme={theme}
         />

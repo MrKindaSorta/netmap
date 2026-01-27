@@ -30,7 +30,12 @@ export default function WelcomeModal({ onClose, onNetworkCreated, theme }) {
         devices: {},
         connections: {},
         vlans: {},
-        buildings: {}
+        buildings: {},
+        viewState: {
+          circleScale: 1,
+          deviceLabelScale: 1,
+          portLabelScale: 1
+        }
       });
 
       onNetworkCreated(network);
