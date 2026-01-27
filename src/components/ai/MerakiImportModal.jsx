@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Download, AlertCircle } from 'lucide-react';
+import Icon from '../common/Icon';
 import { fetchMerakiOrganizations, fetchMerakiNetworks, importFromMeraki } from '../../services/merakiIntegration';
 
 export default function MerakiImportModal({ onClose, onImport }) {
@@ -71,21 +71,25 @@ export default function MerakiImportModal({ onClose, onImport }) {
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
-            <Download className="w-5 h-5 text-blue-600" />
+            <div className="text-blue-600">
+              <Icon d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" s={20} />
+            </div>
             <h2 className="text-lg font-semibold">Import from Meraki Dashboard</h2>
           </div>
           <button
             onClick={onClose}
             className="p-1 hover:bg-gray-100 rounded"
           >
-            <X className="w-5 h-5" />
+            <Icon d="M18 6L6 18M6 6l12 12" s={20} />
           </button>
         </div>
 
         <div className="p-6">
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="text-red-600 flex-shrink-0 mt-0.5">
+                <Icon d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" s={20} />
+              </div>
               <span className="text-sm text-red-800">{error}</span>
             </div>
           )}

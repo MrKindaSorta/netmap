@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, XCircle, Link, TrendingUp, Trash2 } from 'lucide-react';
+import Icon from '../common/Icon';
 
 export default function ConnectionSuggestionCard({
   suggestion,
@@ -8,12 +8,12 @@ export default function ConnectionSuggestionCard({
 }) {
   const { type, fromDevice, toDevice, reasoning } = suggestion;
 
-  const getIcon = () => {
+  const getIconPath = () => {
     switch (type) {
-      case 'connection_addition': return <Link className="w-5 h-5" />;
-      case 'connection_modification': return <TrendingUp className="w-5 h-5" />;
-      case 'connection_removal': return <Trash2 className="w-5 h-5" />;
-      default: return <Link className="w-5 h-5" />;
+      case 'connection_addition': return 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71'; // Link
+      case 'connection_modification': return 'M22 12h-4l-3 9L9 3l-3 9H2'; // TrendingUp
+      case 'connection_removal': return 'M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2'; // Trash2
+      default: return 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71';
     }
   };
 
@@ -34,7 +34,7 @@ export default function ConnectionSuggestionCard({
     <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border-2 border-blue-200 shadow-sm">
       <div className="flex items-start gap-3 mb-3">
         <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
-          {getIcon()}
+          <Icon d={getIconPath()} s={20} />
         </div>
         <div className="flex-1">
           <h4 className="font-semibold text-gray-900 mb-1">
@@ -110,14 +110,14 @@ export default function ConnectionSuggestionCard({
           onClick={() => onApprove(suggestion)}
           className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
-          <CheckCircle2 className="w-4 h-4" />
+          <Icon d="M22 11.08V12a10 10 0 11-5.93-9.14M22 4L12 14.01l-3-3" s={16} />
           Approve
         </button>
         <button
           onClick={() => onDecline(suggestion)}
           className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
         >
-          <XCircle className="w-4 h-4" />
+          <Icon d="M18 6L6 18M6 6l12 12" s={16} />
           Decline
         </button>
       </div>
