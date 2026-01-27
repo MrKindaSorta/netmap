@@ -76,41 +76,22 @@ const PhysicalViewControls = ({
       <IconButton
         onClick={() => setVisibilityMode(!visibilityMode)}
         icon={<Icon d={visibilityMode ? "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 9a3 3 0 100 6 3 3 0 000-6z" : "M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24 M1 1l22 22"} s={16} />}
-        title="Visibility Mode (V) - Keep device size constant when zooming"
+        title="Fixed Size Mode (V) - Maintains icon size when zooming"
         active={visibilityMode}
         theme={theme}
       />
       {visibilityMode && (
-        <div className="flex items-center gap-1 px-2">
-          <span className="text-xs" style={{ color: theme.textMuted }}>Size:</span>
-          <button
-            onClick={() => setVisibilityModeSize('small')}
-            className="px-2 py-0.5 rounded text-xs transition-colors"
-            style={visibilityModeSize === 'small' ? { background: theme.buttonActive, color: theme.buttonActiveText } : { color: theme.text }}
-            onMouseEnter={(e) => visibilityModeSize !== 'small' && (e.currentTarget.style.background = theme.hover)}
-            onMouseLeave={(e) => visibilityModeSize !== 'small' && (e.currentTarget.style.background = 'transparent')}
-          >
-            S
-          </button>
-          <button
-            onClick={() => setVisibilityModeSize('medium')}
-            className="px-2 py-0.5 rounded text-xs transition-colors"
-            style={visibilityModeSize === 'medium' ? { background: theme.buttonActive, color: theme.buttonActiveText } : { color: theme.text }}
-            onMouseEnter={(e) => visibilityModeSize !== 'medium' && (e.currentTarget.style.background = theme.hover)}
-            onMouseLeave={(e) => visibilityModeSize !== 'medium' && (e.currentTarget.style.background = 'transparent')}
-          >
-            M
-          </button>
-          <button
-            onClick={() => setVisibilityModeSize('large')}
-            className="px-2 py-0.5 rounded text-xs transition-colors"
-            style={visibilityModeSize === 'large' ? { background: theme.buttonActive, color: theme.buttonActiveText } : { color: theme.text }}
-            onMouseEnter={(e) => visibilityModeSize !== 'large' && (e.currentTarget.style.background = theme.hover)}
-            onMouseLeave={(e) => visibilityModeSize !== 'large' && (e.currentTarget.style.background = 'transparent')}
-          >
-            L
-          </button>
-        </div>
+        <select
+          value={visibilityModeSize}
+          onChange={(e) => setVisibilityModeSize(e.target.value)}
+          className="px-2 py-1 rounded text-xs border ml-1"
+          style={{ background: theme.bg, borderColor: theme.border, color: theme.text }}
+          title="Icon size in Fixed Size Mode"
+        >
+          <option value="small">Small</option>
+          <option value="medium">Medium</option>
+          <option value="large">Large</option>
+        </select>
       )}
     </>
   );

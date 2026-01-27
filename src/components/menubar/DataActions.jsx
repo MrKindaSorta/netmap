@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Icon } from './MenuBarButton';
 
 const DataActions = ({
@@ -12,20 +12,35 @@ const DataActions = ({
   isSaving,
   theme
 }) => {
+  const fileInputRef = useRef(null);
+
   return (
     <>
-      <label
-        className="px-2 py-1 rounded text-xs font-medium cursor-pointer transition-colors"
+      <button
+        onClick={() => fileInputRef.current?.click()}
+        className="px-2 py-1 rounded text-xs font-medium transition-colors"
         style={{ color: theme.text }}
         onMouseEnter={(e) => e.currentTarget.style.background = theme.hover}
         onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+        title="Import network from JSON"
       >
         Import
-        <input type="file" accept=".json" onChange={importData} className="hidden" />
-      </label>
+      </button>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        onChange={importData}
+        className="hidden"
+      />
+
       <button
         onClick={exportData}
-        className="px-2 py-1 rounded text-xs font-medium bg-blue-600 text-white"
+        className="px-2 py-1 rounded text-xs font-medium text-white transition-colors"
+        style={{ background: theme.primary || '#2563eb' }}
+        onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+        onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+        title="Export network to JSON"
       >
         Export
       </button>

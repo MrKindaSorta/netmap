@@ -7,6 +7,7 @@ export const darkTheme = {
   grid: '#2a2a3e',
   gridL: '#3a3a4e',
   hover: '#3a3a4e',
+  primary: '#2563eb',
   buttonActive: '#2563eb20',
   buttonActiveText: '#60a5fa'
 };
@@ -20,6 +21,7 @@ export const lightTheme = {
   grid: '#e2e8f0',
   gridL: '#cbd5e1',
   hover: '#f1f5f9',
+  primary: '#2563eb',
   buttonActive: '#dbeafe',
   buttonActiveText: '#2563eb'
 };

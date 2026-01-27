@@ -11,7 +11,7 @@ const SearchInput = ({ searchQuery, setSearchQuery, theme }) => {
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
         placeholder="Search devices..."
-        className="w-32 pl-7 pr-7 py-1 rounded text-xs border focus:w-48 transition-all"
+        className="w-40 pl-7 pr-7 py-1 rounded text-xs border transition-colors"
         style={{ background: theme.bg, borderColor: theme.border, color: theme.text }}
       />
       {searchQuery && (

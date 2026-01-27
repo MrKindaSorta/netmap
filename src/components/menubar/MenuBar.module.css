@@ -3,67 +3,6 @@
   @apply h-12 px-3 flex items-center gap-2 border-b;
 }
 
-/* Buttons */
-.iconButton {
-  @apply p-1.5 rounded transition-colors;
-}
-
-.iconButton:disabled {
-  @apply opacity-30 cursor-not-allowed;
-}
-
-.toggleButton {
-  @apply px-2.5 py-1 text-xs font-medium rounded;
-}
-
-.toggleButtonActive {
-  @apply px-2.5 py-1 text-xs font-medium rounded;
-  background: #2563eb;
-  color: white;
-}
-
-/* Drawing tool buttons - Physical view */
-.drawingTool {
-  @apply p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed;
-}
-
-.drawingToolWall {
-  background: #f97316; /* orange */
-  color: white;
-}
-
-.drawingToolRoom {
-  background: #a855f7; /* purple */
-  color: white;
-}
-
-.drawingToolMeasure {
-  background: #ef4444; /* red */
-  color: white;
-}
-
-/* Scale controls */
-.scaleDisplay {
-  @apply px-2 text-xs font-medium w-12 text-center;
-}
-
-.scaleGroup {
-  @apply flex items-center;
-}
-
-/* Inputs */
-.searchInput {
-  @apply w-32 px-2 py-1 rounded text-xs border transition-all;
-}
-
-.searchInput:focus {
-  @apply w-48;
-}
-
-.select {
-  @apply px-2 py-1 rounded text-xs border;
-}
-
 /* Dividers */
 .divider {
   @apply w-px h-5;

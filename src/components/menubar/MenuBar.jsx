@@ -4,7 +4,7 @@ import ViewModeToggle from './ViewModeToggle';
 import PhysicalViewControls from './PhysicalViewControls';
 import ViewControls from './ViewControls';
 import HistoryControls from './HistoryControls';
-import ScalingControls from './ScalingControls';
+import ScalingControlsDropdown from './ScalingControlsDropdown';
 import SearchAndFilters from './SearchAndFilters';
 import DataActions from './DataActions';
 import CollaborationControls from './CollaborationControls';
@@ -157,9 +157,8 @@ const MenuBar = ({
         theme={theme}
       />
 
-      {/* Scaling */}
-      <div className={styles.divider} style={{ background: theme.border }} />
-      <ScalingControls
+      {/* Scaling - Compact Dropdown */}
+      <ScalingControlsDropdown
         circleScale={circleScale}
         setCircleScale={setCircleScale}
         deviceLabelScale={deviceLabelScale}

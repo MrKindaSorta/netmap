@@ -7,15 +7,22 @@ const Icon = ({ d, s = 16 }) => (
   </svg>
 );
 
+// Button size variants
+const SIZE_CLASSES = {
+  icon: 'p-1.5',           // 24px - icon only
+  compact: 'px-2 py-1',    // 24px height - compact text
+  standard: 'px-3 py-1.5', // 28px height - icon+text
+};
+
 /**
  * IconButton - Standardized icon-only button
  */
-export const IconButton = ({ onClick, icon, title, disabled = false, active = false, theme, ...props }) => {
+export const IconButton = ({ onClick, icon, title, disabled = false, active = false, theme, size = 'icon', ...props }) => {
   return (
     <HoverableButton
       onClick={onClick}
       theme={theme}
-      className="p-1.5 rounded"
+      className={`${SIZE_CLASSES[size]} rounded`}
       title={title}
       disabled={disabled}
       active={active}

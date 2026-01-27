@@ -12,7 +12,7 @@ const CollaborationControls = ({ currentNetwork, isPremium, setShareNetworkId, s
         setShareNetworkId(currentNetwork.id);
         setShowShareModal(true);
       }}
-      className="px-2 py-1 rounded text-xs font-medium flex items-center gap-1.5 transition-colors"
+      className="px-3 py-1.5 rounded text-xs font-medium flex items-center gap-1.5 transition-colors"
       style={{ background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text }}
       onMouseEnter={(e) => e.currentTarget.style.background = theme.hover}
       onMouseLeave={(e) => e.currentTarget.style.background = theme.bg}

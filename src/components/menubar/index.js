@@ -5,6 +5,7 @@ export { default as PhysicalViewControls } from './PhysicalViewControls';
 export { default as ViewControls } from './ViewControls';
 export { default as HistoryControls } from './HistoryControls';
 export { default as ScalingControls } from './ScalingControls';
+export { default as ScalingControlsDropdown } from './ScalingControlsDropdown';
 export { default as SearchInput } from './SearchInput';
 export { default as SearchAndFilters } from './SearchAndFilters';
 export { default as DataActions } from './DataActions';
