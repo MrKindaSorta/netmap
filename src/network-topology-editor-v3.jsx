@@ -38,6 +38,7 @@ import WelcomeModal from './components/auth/WelcomeModal';
 // Import UI components
 import NetworkSelector from './components/ui/NetworkSelector';
 import SyncStatus from './components/ui/SyncStatus';
+import { MenuBar } from './components/menubar';
 
 // Import network components
 import ReadOnlyBanner from './components/network/ReadOnlyBanner';
@@ -1912,210 +1913,74 @@ const NetworkTopologyEditor = () => {
 
   return (
     <div className="w-full h-screen flex flex-col" style={{ background: theme.bg, color: theme.text, fontFamily: "'Inter', sans-serif" }}>
-      <div className="h-12 px-3 flex items-center gap-2 border-b" style={{ background: theme.surface, borderColor: theme.border }}>
-        <div className="flex items-center gap-1.5"><div className="w-7 h-7 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white"><Icon d="M6 6m-3 0a3 3 0 106 0M18 6m-3 0a3 3 0 106 0M6 18m-3 0a3 3 0 106 0M18 18m-3 0a3 3 0 106 0M6 9v6M18 9v6M9 6h6M9 18h6" s={14} /></div><span className="font-bold">NetMap</span><span className="text-xs px-1.5 py-0.5 rounded" style={{ background: theme.bg }}>v3</span></div>
-        <div className="w-px h-5" style={{ background: theme.border }} />
-        <div className="flex rounded overflow-hidden" style={{ background: theme.bg }}>
-          <button onClick={() => setViewMode('logical')} className="px-2.5 py-1 text-xs font-medium" style={viewMode === 'logical' ? { background: '#2563eb', color: 'white' } : { color: theme.text }}>Logical</button>
-          <button onClick={() => setViewMode('physical')} className="px-2.5 py-1 text-xs font-medium" style={viewMode === 'physical' ? { background: '#2563eb', color: 'white' } : { color: theme.text }}>Physical</button>
-        </div>
-        {viewMode === 'physical' && <>
-          <div className="w-px h-5" style={{ background: theme.border }} />
-          <div className="flex rounded p-0.5 gap-0.5" style={{ background: theme.bg }}>
-            <button onClick={() => canEdit && setDrawingMode(drawingMode === 'wall' ? null : 'wall')} disabled={isReadOnly} className="p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" style={drawingMode === 'wall' ? { background: '#f97316', color: 'white' } : { color: theme.text }} onMouseEnter={(e) => drawingMode !== 'wall' && !isReadOnly && (e.currentTarget.style.background = theme.hover)} onMouseLeave={(e) => drawingMode !== 'wall' && (e.currentTarget.style.background = 'transparent')} title={isReadOnly ? "Read-only mode" : "Draw Wall"}><Icon d="M3 21V3h18v18" s={16} /></button>
-            <button onClick={() => canEdit && setDrawingMode(drawingMode === 'room' ? null : 'room')} disabled={isReadOnly} className="p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" style={drawingMode === 'room' ? { background: '#a855f7', color: 'white' } : { color: theme.text }} onMouseEnter={(e) => drawingMode !== 'room' && !isReadOnly && (e.currentTarget.style.background = theme.hover)} onMouseLeave={(e) => drawingMode !== 'room' && (e.currentTarget.style.background = 'transparent')} title={isReadOnly ? "Read-only mode" : "Draw Room"}><Icon d="M3 3h18v18H3zM9 3v18M15 3v18" s={16} /></button>
-            <button onClick={() => setDrawingMode(drawingMode === 'measure' ? null : 'measure')} className="p-1.5 rounded transition-colors" style={drawingMode === 'measure' ? { background: '#ef4444', color: 'white' } : { color: theme.text }} onMouseEnter={(e) => drawingMode !== 'measure' && (e.currentTarget.style.background = theme.hover)} onMouseLeave={(e) => drawingMode !== 'measure' && (e.currentTarget.style.background = 'transparent')} title="Measure"><Icon d="M2 12h20M12 2v20" s={16} /></button>
-            <button onClick={() => fileInputRef.current?.click()} className="p-1.5 rounded transition-colors" style={{ color: theme.text }} onMouseEnter={(e) => e.currentTarget.style.background = theme.hover} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'} title="Upload Floor Plan"><Icon d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M12 4v12M8 8l4-4 4 4" s={16} /></button>
-            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-          </div>
-          <select value={measurementUnit} onChange={(e) => setMeasurementUnit(e.target.value)} className="px-2 py-1 rounded text-xs border" style={{ background: theme.bg, borderColor: theme.border, color: theme.text }}><option value="imperial">Feet</option><option value="metric">Meters</option></select>
-          <button onClick={() => setShowMeasurements(!showMeasurements)} className="p-1.5 rounded transition-colors" style={showMeasurements ? { background: theme.buttonActive, color: theme.buttonActiveText } : { color: theme.text }} onMouseEnter={(e) => !showMeasurements && (e.currentTarget.style.background = theme.hover)} onMouseLeave={(e) => !showMeasurements && (e.currentTarget.style.background = 'transparent')} title="Measurements"><Icon d="M6 6l12 12M6 18L18 6" s={16} /></button>
-          <div className="w-px h-5" style={{ background: theme.border }} />
-          <button onClick={() => setVisibilityMode(!visibilityMode)} className="p-1.5 rounded transition-colors" style={visibilityMode ? { background: theme.buttonActive, color: theme.buttonActiveText } : { color: theme.text }} onMouseEnter={(e) => !visibilityMode && (e.currentTarget.style.background = theme.hover)} onMouseLeave={(e) => !visibilityMode && (e.currentTarget.style.background = 'transparent')} title="Visibility Mode (V) - Keep device size constant when zooming"><Icon d={visibilityMode ? "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 9a3 3 0 100 6 3 3 0 000-6z" : "M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24 M1 1l22 22"} s={16} /></button>
-          {visibilityMode && <div className="flex items-center gap-1 px-2"><span className="text-xs" style={{ color: theme.textMuted }}>Size:</span><button onClick={() => setVisibilityModeSize('small')} className="px-2 py-0.5 rounded text-xs transition-colors" style={visibilityModeSize === 'small' ? { background: theme.buttonActive, color: theme.buttonActiveText } : { color: theme.text }} onMouseEnter={(e) => visibilityModeSize !== 'small' && (e.currentTarget.style.background = theme.hover)} onMouseLeave={(e) => visibilityModeSize !== 'small' && (e.currentTarget.style.background = 'transparent')}>S</button><button onClick={() => setVisibilityModeSize('medium')} className="px-2 py-0.5 rounded text-xs transition-colors" style={visibilityModeSize === 'medium' ? { background: theme.buttonActive, color: theme.buttonActiveText } : { color: theme.text }} onMouseEnter={(e) => visibilityModeSize !== 'medium' && (e.currentTarget.style.background = theme.hover)} onMouseLeave={(e) => visibilityModeSize !== 'medium' && (e.currentTarget.style.background = 'transparent')}>M</button><button onClick={() => setVisibilityModeSize('large')} className="px-2 py-0.5 rounded text-xs transition-colors" style={visibilityModeSize === 'large' ? { background: theme.buttonActive, color: theme.buttonActiveText } : { color: theme.text }} onMouseEnter={(e) => visibilityModeSize !== 'large' && (e.currentTarget.style.background = theme.hover)} onMouseLeave={(e) => visibilityModeSize !== 'large' && (e.currentTarget.style.background = 'transparent')}>L</button></div>}
-        </>}
-        <div className="w-px h-5" style={{ background: theme.border }} />
-        <button onClick={() => setShowGrid(g => !g)} className="p-1.5 rounded transition-colors" style={showGrid ? { background: theme.buttonActive, color: theme.buttonActiveText } : { color: theme.text }} onMouseEnter={(e) => !showGrid && (e.currentTarget.style.background = theme.hover)} onMouseLeave={(e) => !showGrid && (e.currentTarget.style.background = 'transparent')} title="Toggle grid (G)"><Icon d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18" s={16} /></button>
-        <button onClick={() => setDarkMode(d => !d)} className="p-1.5 rounded transition-colors" style={{ color: theme.text }} onMouseEnter={(e) => e.currentTarget.style.background = theme.hover} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'} title="Toggle dark mode"><Icon d={darkMode ? 'M12 3v1M12 20v1M4.2 4.2l.7.7M18.4 18.4l.7.7M3 12h1M20 12h1' : 'M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z'} s={16} /></button>
-        {viewMode === 'logical' && <>
-          <div className="w-px h-5" style={{ background: theme.border }} />
-          <button onClick={() => setShowMinimap(m => !m)} className="p-1.5 rounded transition-colors" style={showMinimap ? { background: theme.buttonActive, color: theme.buttonActiveText } : { color: theme.text }} onMouseEnter={(e) => !showMinimap && (e.currentTarget.style.background = theme.hover)} onMouseLeave={(e) => !showMinimap && (e.currentTarget.style.background = 'transparent')} title="Minimap"><Icon d="M9 9h6v6H9zM3 3h18v18H3z" s={16} /></button>
-        </>}
-        <div className="w-px h-5" style={{ background: theme.border }} />
-        <button onClick={undo} disabled={historyIdx <= 0} className="p-1.5 rounded transition-colors disabled:opacity-30" style={{ color: theme.text }} onMouseEnter={(e) => historyIdx > 0 && (e.currentTarget.style.background = theme.hover)} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'} title="Undo (Ctrl+Z)"><Icon d="M9 14l-4-4 4-4M5 10h11a4 4 0 110 8h-1" s={16} /></button>
-        <button onClick={redo} disabled={historyIdx >= history.length - 1} className="p-1.5 rounded transition-colors disabled:opacity-30" style={{ color: theme.text }} onMouseEnter={(e) => historyIdx < history.length - 1 && (e.currentTarget.style.background = theme.hover)} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'} title="Redo (Ctrl+Y)"><Icon d="M15 14l4-4-4-4M19 10H8a4 4 0 100 8h1" s={16} /></button>
-        <div className="w-px h-5" style={{ background: theme.border }} />
-        <button onClick={() => setCircleScale(s => Math.max(s - 0.1, 0.5))} disabled={viewMode === 'physical' && visibilityMode} className="p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" style={{ color: theme.text }} title="Shrink circles" onMouseEnter={(e) => !(viewMode === 'physical' && visibilityMode) && (e.currentTarget.style.background = theme.hover)} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}><Icon d="M5 12h14" s={16} /></button>
-        <span className="px-2 text-xs font-medium w-12 text-center">{Math.round(circleScale * 100)}%</span>
-        <button onClick={() => setCircleScale(s => Math.min(s + 0.1, 2.5))} disabled={viewMode === 'physical' && visibilityMode} className="p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" style={{ color: theme.text }} title="Grow circles" onMouseEnter={(e) => !(viewMode === 'physical' && visibilityMode) && (e.currentTarget.style.background = theme.hover)} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}><Icon d="M12 5v14M5 12h14" s={16} /></button>
-        <div className="w-px h-5" style={{ background: theme.border }} />
-        <button onClick={() => setDeviceLabelScale(s => Math.max(s - 0.1, 0.5))} disabled={viewMode === 'physical' && visibilityMode} className="p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" style={{ color: theme.text }} title="Shrink device labels (;)" onMouseEnter={(e) => !(viewMode === 'physical' && visibilityMode) && (e.currentTarget.style.background = theme.hover)} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}><Icon d="M5 12h14" s={16} /></button>
-        <span className="px-2 text-xs font-medium w-12 text-center">{Math.round(deviceLabelScale * 100)}%</span>
-        <button onClick={() => setDeviceLabelScale(s => Math.min(s + 0.1, 2.5))} disabled={viewMode === 'physical' && visibilityMode} className="p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" style={{ color: theme.text }} title="Grow device labels (')" onMouseEnter={(e) => !(viewMode === 'physical' && visibilityMode) && (e.currentTarget.style.background = theme.hover)} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}><Icon d="M12 5v14M5 12h14" s={16} /></button>
-        <div className="w-px h-5" style={{ background: theme.border }} />
-        <button onClick={() => setPortLabelScale(s => Math.max(s - 0.1, 0.5))} disabled={viewMode === 'physical' && visibilityMode} className="p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" style={{ color: theme.text }} title="Shrink port labels ({)" onMouseEnter={(e) => !(viewMode === 'physical' && visibilityMode) && (e.currentTarget.style.background = theme.hover)} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}><Icon d="M5 12h14" s={16} /></button>
-        <span className="px-2 text-xs font-medium w-12 text-center">{Math.round(portLabelScale * 100)}%</span>
-        <button onClick={() => setPortLabelScale(s => Math.min(s + 0.1, 2.5))} disabled={viewMode === 'physical' && visibilityMode} className="p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" style={{ color: theme.text }} title="Grow port labels (})" onMouseEnter={(e) => !(viewMode === 'physical' && visibilityMode) && (e.currentTarget.style.background = theme.hover)} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}><Icon d="M12 5v14M5 12h14" s={16} /></button>
-        <div className="flex-1" />
-
-        {/* Network Selector */}
-        <NetworkSelector
-          theme={theme}
-          onLoadNetwork={(result, networkId) => {
-            setDevices(result.data.devices || {});
-            setConnections(result.data.connections || {});
-            setVlans(result.data.vlans || {});
-            setBuildings(result.data.buildings || {});
-
-            // Load view state if present
-            if (result.data.viewState) {
-              if (result.data.viewState.circleScale !== undefined) setCircleScale(result.data.viewState.circleScale);
-              if (result.data.viewState.deviceLabelScale !== undefined) setDeviceLabelScale(result.data.viewState.deviceLabelScale);
-              if (result.data.viewState.portLabelScale !== undefined) setPortLabelScale(result.data.viewState.portLabelScale);
-            }
-
-            setCurrentVersion(result.version);
-            setHasUnsavedChanges(false);
-          }}
-          currentData={{ devices, connections, vlans, buildings }}
-          hasUnsavedChanges={hasUnsavedChanges}
-        />
-
-        {/* Sync Status Indicator */}
-        <SyncStatus theme={theme} />
-
-        <div className="w-px h-5" style={{ background: theme.border }} />
-        <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search..." className="w-32 px-2 py-1 rounded text-xs border" style={{ background: theme.bg, borderColor: theme.border, color: theme.text }} />
-        {viewMode === 'logical' && <button onClick={() => setShowVlanPanel(!showVlanPanel)} className="px-2 py-1 rounded text-xs font-medium transition-colors" style={showVlanPanel ? { background: '#2563eb', color: 'white' } : { background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text }}>VLANs {filterVlan !== null && <span className="ml-1 px-1.5 py-0.5 rounded bg-blue-500 text-white text-xs">{filterVlan}</span>}</button>}
-        <div className="w-px h-5" style={{ background: theme.border }} />
-        <label className="px-2 py-1 rounded text-xs font-medium cursor-pointer transition-colors" style={{ color: theme.text }} onMouseEnter={(e) => e.currentTarget.style.background = theme.hover} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>Import<input type="file" accept=".json" onChange={importData} className="hidden" /></label>
-        <button onClick={exportData} className="px-2 py-1 rounded text-xs font-medium bg-blue-600 text-white">Export</button>
-
-        {/* Save Button (only show when unsaved changes and can edit) */}
-        {hasUnsavedChanges && canEdit && currentNetwork && isPremium && (
-          <button
-            onClick={handleSaveNetwork}
-            disabled={isSaving}
-            className="px-3 py-1.5 rounded text-xs font-medium flex items-center gap-1.5 transition-colors"
-            style={{
-              background: isSaving ? '#9ca3af' : '#10b981',
-              color: 'white',
-              cursor: isSaving ? 'not-allowed' : 'pointer'
-            }}
-            title="Save changes to cloud (Ctrl+S)"
-          >
-            <Icon d={isSaving ? "M3 15a9 9 0 0118 0M12 20l-3-3m6 0l-3 3" : "M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"} s={14} />
-            {isSaving ? 'Saving...' : 'Save'}
-          </button>
-        )}
-
-        {/* Share Button (owner and editors only) */}
-        {currentNetwork && currentNetwork.permission !== 'view' && isPremium && (
-          <button
-            onClick={() => {
-              setShareNetworkId(currentNetwork.id);
-              setShowShareModal(true);
-            }}
-            className="px-2 py-1 rounded text-xs font-medium flex items-center gap-1.5 transition-colors"
-            style={{ background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text }}
-            onMouseEnter={(e) => e.currentTarget.style.background = theme.hover}
-            onMouseLeave={(e) => e.currentTarget.style.background = theme.bg}
-            title="Share this network"
-          >
-            <Icon d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" s={14} />
-            Share
-          </button>
-        )}
-
-        <button
-          onClick={() => setAiChatOpen(!aiChatOpen)}
-          className="px-3 py-1.5 rounded text-xs font-medium flex items-center gap-1.5 transition-colors"
-          style={aiChatOpen
-            ? { background: '#2563eb', color: 'white' }
-            : { background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text }
-          }
-          onMouseEnter={(e) => !aiChatOpen && (e.currentTarget.style.background = theme.hover)}
-          onMouseLeave={(e) => !aiChatOpen && (e.currentTarget.style.background = theme.bg)}
-          title="AI Assistant (Ctrl+I)"
-        >
-          <Icon d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" s={14} />
-          <span>AI Chat</span>
-        </button>
-
-        {/* User Menu */}
-        <div className="relative">
-          <button
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            className="px-2 py-1.5 rounded text-xs font-medium flex items-center gap-1.5 transition-colors"
-            style={{ background: theme.bg, border: `1px solid ${theme.border}`, color: theme.text }}
-            onMouseEnter={(e) => e.currentTarget.style.background = theme.hover}
-            onMouseLeave={(e) => e.currentTarget.style.background = theme.bg}
-            title={user?.email}
-          >
-            <Icon d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" s={14} />
-            <span>{user?.email?.split('@')[0]}</span>
-          </button>
-
-          {/* User Menu Dropdown */}
-          {showUserMenu && (
-            <div
-              className="absolute right-0 mt-1 w-56 rounded-lg shadow-lg z-50"
-              style={{ background: theme.surface, border: `1px solid ${theme.border}` }}
-            >
-              <div className="p-3 border-b" style={{ borderColor: theme.border }}>
-                <div className="text-sm font-medium" style={{ color: theme.text }}>{user?.email}</div>
-                <div className="text-xs mt-1" style={{ color: theme.textSecondary }}>
-                  {user?.subscription_tier === 'premium' ? '⭐ Premium' : 'Free Tier'}
-                </div>
-              </div>
-              <div className="p-1">
-                <button
-                  onClick={() => {
-                    setShowUserSettings(true);
-                    setShowUserMenu(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-sm rounded transition-colors flex items-center gap-2"
-                  style={{ color: theme.text }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = theme.hover}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  <Icon d="M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" s={14} />
-                  Settings
-                </button>
-                {user?.subscription_tier === 'free' && (
-                  <button
-                    onClick={() => {
-                      setShowUpgradeModal(true);
-                      setShowUserMenu(false);
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm rounded transition-colors flex items-center gap-2"
-                    style={{ color: '#3b82f6' }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = theme.hover}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    <span className="text-base">⭐</span>
-                    Upgrade to Premium
-                  </button>
-                )}
-                <div className="border-t my-1" style={{ borderColor: theme.border }} />
-                <button
-                  onClick={() => {
-                    logout();
-                    setShowUserMenu(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-sm rounded transition-colors flex items-center gap-2"
-                  style={{ color: theme.text }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = theme.hover}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  <Icon d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" s={14} />
-                  Sign Out
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      <MenuBar
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        theme={theme}
+        drawingMode={drawingMode}
+        setDrawingMode={setDrawingMode}
+        canEdit={canEdit}
+        isReadOnly={isReadOnly}
+        fileInputRef={fileInputRef}
+        handleImageUpload={handleImageUpload}
+        measurementUnit={measurementUnit}
+        setMeasurementUnit={setMeasurementUnit}
+        showMeasurements={showMeasurements}
+        setShowMeasurements={setShowMeasurements}
+        visibilityMode={visibilityMode}
+        setVisibilityMode={setVisibilityMode}
+        visibilityModeSize={visibilityModeSize}
+        setVisibilityModeSize={setVisibilityModeSize}
+        showGrid={showGrid}
+        setShowGrid={setShowGrid}
+        darkMode={darkMode}
+        setDarkMode={setDarkMode}
+        showMinimap={showMinimap}
+        setShowMinimap={setShowMinimap}
+        undo={undo}
+        redo={redo}
+        historyIdx={historyIdx}
+        history={history}
+        circleScale={circleScale}
+        setCircleScale={setCircleScale}
+        deviceLabelScale={deviceLabelScale}
+        setDeviceLabelScale={setDeviceLabelScale}
+        portLabelScale={portLabelScale}
+        setPortLabelScale={setPortLabelScale}
+        devices={devices}
+        setDevices={setDevices}
+        connections={connections}
+        setConnections={setConnections}
+        vlans={vlans}
+        setVlans={setVlans}
+        buildings={buildings}
+        setBuildings={setBuildings}
+        setCurrentVersion={setCurrentVersion}
+        hasUnsavedChanges={hasUnsavedChanges}
+        setHasUnsavedChanges={setHasUnsavedChanges}
+        networks={networks}
+        currentNetwork={currentNetwork}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        showVlanPanel={showVlanPanel}
+        setShowVlanPanel={setShowVlanPanel}
+        filterVlan={filterVlan}
+        importData={importData}
+        exportData={exportData}
+        handleSaveNetwork={handleSaveNetwork}
+        isPremium={isPremium}
+        isSaving={isSaving}
+        setShareNetworkId={setShareNetworkId}
+        setShowShareModal={setShowShareModal}
+        aiChatOpen={aiChatOpen}
+        setAiChatOpen={setAiChatOpen}
+        user={user}
+        showUserMenu={showUserMenu}
+        setShowUserMenu={setShowUserMenu}
+        setShowUserSettings={setShowUserSettings}
+        setShowUpgradeModal={setShowUpgradeModal}
+        logout={logout}
+      />
       {/* Read-Only Banner */}
       {currentNetwork?.permission === 'view' && (
         <ReadOnlyBanner
