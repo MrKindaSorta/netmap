@@ -8,6 +8,10 @@ import { ConnLine, DevNode, Minimap, BuildingThumb } from './components/canvas';
 
 // Import panel components
 import AiChatPanel from './components/panels/AiChatPanel';
+import ConnectionSuggestionCard from './components/ai/ConnectionSuggestionCard';
+import VlanSuggestionCard from './components/ai/VlanSuggestionCard';
+import SecurityReportCard from './components/ai/SecurityReportCard';
+import MerakiImportModal from './components/ai/MerakiImportModal';
 import PathToWan from './components/panels/PathToWan';
 import VlanPanel from './components/panels/VlanPanel';
 
@@ -233,6 +237,10 @@ const NetworkTopologyEditor = () => {
     currentConversationId, setCurrentConversationId,
     aiPendingChange, setAiPendingChange, clearAiPendingChange,
     aiPendingDeviceBatch, setAiPendingDeviceBatch, clearAiPendingDeviceBatch,
+    pendingConnectionSuggestion, setPendingConnectionSuggestion, clearConnectionSuggestion,
+    pendingVlanSuggestion, setPendingVlanSuggestion, clearVlanSuggestion,
+    securityReport, setSecurityReport, clearSecurityReport,
+    showMerakiImport, setShowMerakiImport,
     closeContextMenu,
     clearFilters
   } = uiState;
@@ -558,6 +566,39 @@ const NetworkTopologyEditor = () => {
             vlans
           );
 
+          // Handle connection suggestions
+          if (toolCall.name.startsWith('suggest_connection')) {
+            if (result) {
+              setPendingConnectionSuggestion(result);
+            }
+            return;
+          }
+
+          // Handle VLAN suggestions
+          if (toolCall.name.startsWith('suggest_vlan')) {
+            if (result) {
+              setPendingVlanSuggestion(result);
+            }
+            return;
+          }
+
+          // Handle security reports
+          if (toolCall.name === 'report_security_findings') {
+            if (result) {
+              setSecurityReport(result);
+            }
+            return;
+          }
+
+          // Handle Meraki import request
+          if (toolCall.name === 'request_meraki_import') {
+            if (result) {
+              setShowMerakiImport(true);
+              addAiMessage('assistant', 'Opening Meraki import wizard...');
+            }
+            return;
+          }
+
           if (result.type === 'device_suggestion') {
             // Recalculate position with smart algorithm
             const smartPosition = calculateSmartPosition(
@@ -807,6 +848,169 @@ const NetworkTopologyEditor = () => {
     addAiMessage('system', `Declined ${suggestions.length} device suggestions`);
     clearAiPendingDeviceBatch();
   }, [aiPendingDeviceBatch, addAiMessage, clearAiPendingDeviceBatch]);
+
+  // Handler for connection suggestion approval
+  const handleApproveConnectionSuggestion = useCallback((suggestion) => {
+    if (!suggestion) return;
+
+    saveHistory();
+
+    switch (suggestion.type) {
+      case 'connection_addition': {
+        // Create new connection
+        const newConnection = {
+          id: genId('conn'),
+          from: suggestion.fromDevice.id,
+          to: suggestion.toDevice.id,
+          fromPort: suggestion.fromPort,
+          toPort: suggestion.toPort,
+          type: suggestion.connectionType,
+          speed: suggestion.speed,
+          vlans: suggestion.vlans,
+          cableType: suggestion.cableType,
+          status: 'up'
+        };
+
+        setConnections(prev => ({ ...prev, [newConnection.id]: newConnection }));
+
+        addAiMessage('system', `✓ Added connection: ${suggestion.fromDevice.name} → ${suggestion.toDevice.name}`);
+        break;
+      }
+
+      case 'connection_modification': {
+        setConnections(prev => {
+          const updated = { ...prev };
+          if (updated[suggestion.connectionId]) {
+            updated[suggestion.connectionId] = {
+              ...updated[suggestion.connectionId],
+              ...suggestion.updates
+            };
+          }
+          return updated;
+        });
+
+        addAiMessage('system', `✓ Modified connection: ${suggestion.fromDevice.name} ↔ ${suggestion.toDevice.name}`);
+        break;
+      }
+
+      case 'connection_removal': {
+        setConnections(prev => {
+          const updated = { ...prev };
+          delete updated[suggestion.connectionId];
+          return updated;
+        });
+
+        addAiMessage('system', `✓ Removed connection: ${suggestion.fromDevice.name} ✕ ${suggestion.toDevice.name}`);
+        break;
+      }
+    }
+
+    clearConnectionSuggestion();
+  }, [setConnections, addAiMessage, clearConnectionSuggestion, saveHistory]);
+
+  const handleDeclineConnectionSuggestion = useCallback(() => {
+    addAiMessage('system', 'Connection suggestion declined');
+    clearConnectionSuggestion();
+  }, [addAiMessage, clearConnectionSuggestion]);
+
+  // Handler for VLAN suggestion approval
+  const handleApproveVlanSuggestion = useCallback((suggestion) => {
+    if (!suggestion) return;
+
+    saveHistory();
+
+    if (suggestion.type === 'vlan_creation') {
+      // Create new VLAN
+      const newVlan = {
+        id: suggestion.vlanId,
+        name: suggestion.name,
+        subnet: suggestion.subnet,
+        gateway: suggestion.gateway,
+        description: suggestion.description,
+        color: '#' + Math.floor(Math.random()*16777215).toString(16) // Random color
+      };
+
+      setVlans(prev => ({ ...prev, [newVlan.id]: newVlan }));
+
+      // Assign devices if specified
+      if (suggestion.devicesToAssign.length > 0) {
+        setDevices(prev => {
+          const updated = { ...prev };
+          suggestion.devicesToAssign.forEach(device => {
+            if (updated[device.id]) {
+              const currentVlans = updated[device.id].vlans || [];
+              if (!currentVlans.includes(suggestion.vlanId)) {
+                updated[device.id] = {
+                  ...updated[device.id],
+                  vlans: [...currentVlans, suggestion.vlanId]
+                };
+              }
+            }
+          });
+          return updated;
+        });
+      }
+
+      addAiMessage('system', `✓ Created VLAN ${suggestion.vlanId}: ${suggestion.name}`);
+    } else if (suggestion.type === 'vlan_assignment') {
+      // Assign devices to VLAN
+      setDevices(prev => {
+        const updated = { ...prev };
+        suggestion.devicesToAssign.forEach(device => {
+          if (updated[device.id]) {
+            const currentVlans = updated[device.id].vlans || [];
+            if (!currentVlans.includes(suggestion.vlanId)) {
+              updated[device.id] = {
+                ...updated[device.id],
+                vlans: [...currentVlans, suggestion.vlanId]
+              };
+            }
+          }
+        });
+        return updated;
+      });
+
+      addAiMessage('system', `✓ Assigned ${suggestion.devicesToAssign.length} device(s) to VLAN ${suggestion.vlanId}`);
+    }
+
+    clearVlanSuggestion();
+  }, [setVlans, setDevices, addAiMessage, clearVlanSuggestion, saveHistory]);
+
+  const handleDeclineVlanSuggestion = useCallback(() => {
+    addAiMessage('system', 'VLAN suggestion declined');
+    clearVlanSuggestion();
+  }, [addAiMessage, clearVlanSuggestion]);
+
+  // Handler for security report dismissal
+  const handleDismissSecurityReport = useCallback(() => {
+    clearSecurityReport();
+  }, [clearSecurityReport]);
+
+  // Handler for Meraki import
+  const handleMerakiImport = useCallback((importedDevices) => {
+    saveHistory();
+
+    // Add all imported devices to topology
+    const newDevices = {};
+    importedDevices.forEach((device, index) => {
+      const deviceId = genId('dev');
+      newDevices[deviceId] = {
+        ...device,
+        id: deviceId,
+        // Position in grid layout
+        x: 100 + (index % 5) * 150,
+        y: 100 + Math.floor(index / 5) * 100,
+        physicalX: 100 + (index % 5) * 150,
+        physicalY: 100 + Math.floor(index / 5) * 100,
+        vlans: device.vlans || [1]
+      };
+    });
+
+    setDevices(prev => ({ ...prev, ...newDevices }));
+
+    addAiMessage('system', `✓ Successfully imported ${importedDevices.length} devices from Meraki Dashboard`);
+    setShowMerakiImport(false);
+  }, [setDevices, addAiMessage, setShowMerakiImport, saveHistory]);
 
   // Handler for "Approve" button from AI change proposal
   const handleApproveAiChange = useCallback(() => {
@@ -2117,6 +2321,38 @@ const NetworkTopologyEditor = () => {
           onApproveBatchDevices={handleApproveBatchDevices}
           onDeclineBatchDevices={handleDeclineBatchDevices}
         />
+        {pendingConnectionSuggestion && aiChatOpen && (
+          <div className="absolute top-20 right-16 z-50 w-96">
+            <ConnectionSuggestionCard
+              suggestion={pendingConnectionSuggestion}
+              onApprove={handleApproveConnectionSuggestion}
+              onDecline={handleDeclineConnectionSuggestion}
+            />
+          </div>
+        )}
+        {pendingVlanSuggestion && aiChatOpen && (
+          <div className="absolute top-20 right-16 z-50 w-96">
+            <VlanSuggestionCard
+              suggestion={pendingVlanSuggestion}
+              onApprove={handleApproveVlanSuggestion}
+              onDecline={handleDeclineVlanSuggestion}
+            />
+          </div>
+        )}
+        {securityReport && aiChatOpen && (
+          <div className="absolute top-20 right-16 z-50 w-[500px]">
+            <SecurityReportCard
+              report={securityReport}
+              onDismiss={handleDismissSecurityReport}
+            />
+          </div>
+        )}
+        {showMerakiImport && (
+          <MerakiImportModal
+            onClose={() => setShowMerakiImport(false)}
+            onImport={handleMerakiImport}
+          />
+        )}
         <div className="absolute bottom-3 left-3 flex items-center gap-1 rounded-lg shadow p-1" style={{ background: theme.surface, border: `1px solid ${theme.border}` }}><button onClick={() => setZoom(z => Math.max(z * 0.8, 0.15))} className="p-1.5 rounded transition-colors" style={{ color: theme.text }} onMouseEnter={(e) => e.currentTarget.style.background = theme.hover} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}><Icon d="M5 12h14" s={14} /></button><span className="px-2 text-xs font-medium w-12 text-center">{Math.round(zoom * 100)}%</span><button onClick={() => setZoom(z => Math.min(z * 1.2, 5))} className="p-1.5 rounded transition-colors" style={{ color: theme.text }} onMouseEnter={(e) => e.currentTarget.style.background = theme.hover} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}><Icon d="M12 5v14M5 12h14" s={14} /></button><button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="px-2 py-1 rounded transition-colors text-xs" style={{ color: theme.text }} onMouseEnter={(e) => e.currentTarget.style.background = theme.hover} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>Reset</button></div>
         <div className="absolute top-0 right-0 bottom-0 w-64 border-l overflow-y-auto" style={{ background: theme.surface, borderColor: theme.border, zIndex: 40 }}>
           {selectedDevices.size === 1 && (() => { const d = devices[[...selectedDevices][0]]; if (!d) return null; return <div className="p-3"><div className="flex items-center gap-2 mb-3"><div className="w-8 h-8 rounded flex items-center justify-center" style={{ background: getDevColor(d) + '20', color: getDevColor(d) }}><Icon d={deviceTypes.find(t => t.value === d.type)?.icon || ''} s={18} /></div><div className="flex-1 min-w-0"><h3 className="font-bold text-sm truncate">{d.name}</h3><p className="text-xs" style={{ color: theme.textMuted }}>{deviceTypes.find(t => t.value === d.type)?.label}</p></div><div className="w-2.5 h-2.5 rounded-full" style={{ background: statusColors[d.status] }} /></div>{d.ip && <div className="mb-1.5"><span className="text-xs" style={{ color: theme.textMuted }}>IP</span><p className="font-mono text-xs">{d.ip}</p></div>}{d.mac && <div className="mb-1.5"><span className="text-xs" style={{ color: theme.textMuted }}>MAC</span><p className="font-mono text-xs">{d.mac}</p></div>}<div className="mb-1.5"><span className="text-xs" style={{ color: theme.textMuted }}>Location</span><p className="text-xs">{buildings[d.buildingId]?.name || 'Not Assigned'}</p></div>{d.locked && (<div className="mb-2 p-2 rounded" style={{ background: '#fef3c7', border: '1px solid #f59e0b' }}><div className="flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg><div><span className="text-xs font-semibold" style={{ color: '#92400e' }}>Position Locked</span><p className="text-xs" style={{ color: '#78350f' }}>This device cannot be moved. Edit to unlock.</p></div></div></div>)}{d.vlans?.length > 0 && <div className="mb-2"><span className="text-xs" style={{ color: theme.textMuted }}>VLANs</span><div className="flex flex-wrap gap-1 mt-0.5">{d.vlans.map(v => vlans[v] && <span key={v} className="px-1.5 py-0.5 rounded-full text-xs" style={{ background: vlans[v].color + '20', color: vlans[v].color }}>{v}</span>)}</div></div>}{d.notes && <div className="mb-2"><span className="text-xs" style={{ color: theme.textMuted }}>Notes</span><p className="text-xs whitespace-pre-wrap">{d.notes}</p></div>}<PathToWan deviceId={d.id} devices={devices} connections={connections} theme={theme} onHighlightPath={setHighlightedPath} getUnit={getUnit} /><button onClick={() => setEditingDevice(d.id)} className="w-full py-1.5 text-xs font-medium bg-blue-600 text-white rounded">Edit</button></div>; })()}

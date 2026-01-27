@@ -75,3 +75,23 @@ CREATE TABLE refresh_tokens (
 CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
 CREATE INDEX idx_refresh_tokens_token ON refresh_tokens(token_hash);
 CREATE INDEX idx_refresh_tokens_expires ON refresh_tokens(expires_at);
+
+-- AI usage logs table - audit trail for AI requests
+CREATE TABLE ai_usage_logs (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  user_id TEXT NOT NULL,
+  timestamp INTEGER NOT NULL DEFAULT (unixepoch()),
+  request_type TEXT NOT NULL, -- 'chat', 'device_suggestion', 'connection_suggestion', etc.
+  prompt_tokens INTEGER,
+  completion_tokens INTEGER,
+  total_tokens INTEGER,
+  network_context_included INTEGER DEFAULT 0,
+  network_id TEXT,
+  status TEXT NOT NULL, -- 'success', 'error', 'rate_limited'
+  error_message TEXT,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (network_id) REFERENCES networks(id) ON DELETE SET NULL
+);
+
+CREATE INDEX idx_ai_logs_user ON ai_usage_logs(user_id, timestamp DESC);
+CREATE INDEX idx_ai_logs_network ON ai_usage_logs(network_id, timestamp DESC);

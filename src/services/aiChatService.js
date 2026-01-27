@@ -411,6 +411,43 @@ import { findExistingDevice } from './aiEditParser';
  * @returns {Object} Tool call result
  */
 export function handleAiToolCall(toolCall, devices, connections, buildings, vlans) {
+  console.log('Processing AI tool call:', toolCall.name);
+
+  switch (toolCall.name) {
+    case 'suggest_device_addition':
+      return handleDeviceSuggestion(toolCall, devices, connections, buildings);
+
+    case 'suggest_connection_addition':
+      return handleConnectionAddition(toolCall, devices, connections);
+
+    case 'suggest_connection_modification':
+      return handleConnectionModification(toolCall, devices, connections);
+
+    case 'suggest_connection_removal':
+      return handleConnectionRemoval(toolCall, devices, connections);
+
+    case 'suggest_vlan_creation':
+      return handleVlanCreation(toolCall, vlans, devices);
+
+    case 'suggest_vlan_assignment':
+      return handleVlanAssignment(toolCall, vlans, devices);
+
+    case 'report_security_findings':
+      return handleSecurityReport(toolCall);
+
+    case 'request_meraki_import':
+      return handleMerakiImportRequest(toolCall);
+
+    default:
+      console.warn('Unknown tool call:', toolCall.name);
+      return null;
+  }
+}
+
+/**
+ * Handle device suggestion tool call
+ */
+function handleDeviceSuggestion(toolCall, devices, connections, buildings) {
   if (toolCall.name === 'suggest_device_addition') {
     const { device, suggestedPosition, connections: suggestedConnections, reasoning, confidence } = toolCall.input;
 
@@ -504,6 +541,251 @@ export function handleAiToolCall(toolCall, devices, connections, buildings, vlan
   }
 
   return { type: 'unknown_tool', error: `Unknown tool: ${toolCall.name}` };
+}
+
+/**
+ * Handle connection addition suggestion
+ */
+function handleConnectionAddition(toolCall, devices, connections) {
+  const input = toolCall.input;
+
+  // Validate both devices exist
+  const fromDevice = devices.find(d =>
+    d.name.toLowerCase() === input.fromDeviceName.toLowerCase()
+  );
+  const toDevice = devices.find(d =>
+    d.name.toLowerCase() === input.toDeviceName.toLowerCase()
+  );
+
+  if (!fromDevice || !toDevice) {
+    console.error('Connection suggestion references non-existent device(s)');
+    return null;
+  }
+
+  // Check if connection already exists
+  const existingConnection = connections.find(c =>
+    (c.from === fromDevice.id && c.to === toDevice.id) ||
+    (c.from === toDevice.id && c.to === fromDevice.id)
+  );
+
+  if (existingConnection) {
+    console.warn('Connection already exists between these devices');
+    return null;
+  }
+
+  return {
+    type: 'connection_addition',
+    fromDevice: fromDevice,
+    toDevice: toDevice,
+    fromPort: input.fromPort,
+    toPort: input.toPort,
+    connectionType: input.connectionType,
+    speed: input.speed || '1G',
+    vlans: input.vlans || [],
+    cableType: input.cableType || 'copper',
+    reasoning: input.reasoning,
+    confidence: input.confidence || 'medium'
+  };
+}
+
+/**
+ * Handle connection modification suggestion
+ */
+function handleConnectionModification(toolCall, devices, connections) {
+  const input = toolCall.input;
+
+  // Find devices
+  const fromDevice = devices.find(d =>
+    d.name.toLowerCase() === input.fromDeviceName.toLowerCase()
+  );
+  const toDevice = devices.find(d =>
+    d.name.toLowerCase() === input.toDeviceName.toLowerCase()
+  );
+
+  if (!fromDevice || !toDevice) {
+    console.error('Connection modification references non-existent device(s)');
+    return null;
+  }
+
+  // Find existing connection
+  const connection = connections.find(c =>
+    (c.from === fromDevice.id && c.to === toDevice.id) ||
+    (c.from === toDevice.id && c.to === fromDevice.id)
+  );
+
+  if (!connection) {
+    console.error('Cannot modify non-existent connection');
+    return null;
+  }
+
+  return {
+    type: 'connection_modification',
+    connectionId: connection.id,
+    fromDevice: fromDevice,
+    toDevice: toDevice,
+    currentValues: {
+      speed: connection.speed,
+      vlans: connection.vlans || [],
+      connectionType: connection.type,
+      status: connection.status
+    },
+    updates: input.updates,
+    reasoning: input.reasoning
+  };
+}
+
+/**
+ * Handle connection removal suggestion
+ */
+function handleConnectionRemoval(toolCall, devices, connections) {
+  const input = toolCall.input;
+
+  // Find devices and connection
+  const fromDevice = devices.find(d =>
+    d.name.toLowerCase() === input.fromDeviceName.toLowerCase()
+  );
+  const toDevice = devices.find(d =>
+    d.name.toLowerCase() === input.toDeviceName.toLowerCase()
+  );
+
+  if (!fromDevice || !toDevice) return null;
+
+  const connection = connections.find(c =>
+    (c.from === fromDevice.id && c.to === toDevice.id) ||
+    (c.from === toDevice.id && c.to === fromDevice.id)
+  );
+
+  if (!connection) {
+    console.error('Cannot remove non-existent connection');
+    return null;
+  }
+
+  return {
+    type: 'connection_removal',
+    connectionId: connection.id,
+    fromDevice: fromDevice,
+    toDevice: toDevice,
+    reasoning: input.reasoning,
+    impact: input.impact
+  };
+}
+
+/**
+ * Handle VLAN creation suggestion
+ */
+function handleVlanCreation(toolCall, vlans, devices) {
+  const input = toolCall.input;
+
+  // Check if VLAN ID already exists
+  const existingVlan = Object.values(vlans).find(v => v.id === input.vlanId);
+  if (existingVlan) {
+    console.error(`VLAN ${input.vlanId} already exists`);
+    return null;
+  }
+
+  // Validate subnet format (basic check)
+  if (input.subnet && !/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/.test(input.subnet)) {
+    console.error('Invalid subnet format');
+    return null;
+  }
+
+  // Find devices to assign
+  let devicesToAssign = [];
+  if (input.deviceNames && input.deviceNames.length > 0) {
+    devicesToAssign = input.deviceNames
+      .map(name => Object.values(devices).find(d => d.name.toLowerCase() === name.toLowerCase()))
+      .filter(Boolean);
+  }
+
+  return {
+    type: 'vlan_creation',
+    vlanId: input.vlanId,
+    name: input.name,
+    subnet: input.subnet || '',
+    gateway: input.gateway || '',
+    description: input.description || '',
+    devicesToAssign: devicesToAssign,
+    reasoning: input.reasoning,
+    confidence: input.confidence || 'medium'
+  };
+}
+
+/**
+ * Handle VLAN assignment suggestion
+ */
+function handleVlanAssignment(toolCall, vlans, devices) {
+  const input = toolCall.input;
+
+  // Check VLAN exists
+  const vlan = Object.values(vlans).find(v => v.id === input.vlanId);
+  if (!vlan) {
+    console.error(`VLAN ${input.vlanId} does not exist`);
+    return null;
+  }
+
+  // Find devices
+  const devicesToAssign = input.deviceNames
+    .map(name => Object.values(devices).find(d => d.name.toLowerCase() === name.toLowerCase()))
+    .filter(Boolean);
+
+  if (devicesToAssign.length === 0) {
+    console.error('No valid devices found for VLAN assignment');
+    return null;
+  }
+
+  return {
+    type: 'vlan_assignment',
+    vlanId: input.vlanId,
+    vlanName: vlan.name,
+    devicesToAssign: devicesToAssign,
+    reasoning: input.reasoning
+  };
+}
+
+/**
+ * Handle security report
+ */
+function handleSecurityReport(toolCall) {
+  const input = toolCall.input;
+
+  // Group findings by severity
+  const findingsBySeverity = {
+    critical: [],
+    high: [],
+    medium: [],
+    low: [],
+    info: []
+  };
+
+  input.findings.forEach(finding => {
+    if (findingsBySeverity[finding.severity]) {
+      findingsBySeverity[finding.severity].push(finding);
+    }
+  });
+
+  return {
+    type: 'security_report',
+    findings: input.findings,
+    findingsBySeverity,
+    summary: input.summary,
+    criticalCount: input.criticalCount || findingsBySeverity.critical.length,
+    highCount: input.highCount || findingsBySeverity.high.length,
+    totalFindings: input.findings.length
+  };
+}
+
+/**
+ * Handle Meraki import request
+ */
+function handleMerakiImportRequest(toolCall) {
+  const input = toolCall.input;
+
+  return {
+    type: 'meraki_import_request',
+    reason: input.reason,
+    organizationName: input.organizationName || null,
+    estimatedDeviceCount: input.estimatedDeviceCount || null
+  };
 }
 
 /**

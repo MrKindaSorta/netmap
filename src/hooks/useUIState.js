@@ -41,6 +41,10 @@ export const useUIState = () => {
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [aiPendingChange, setAiPendingChange] = useState(null);
   const [aiPendingDeviceBatch, setAiPendingDeviceBatch] = useState(null);
+  const [pendingConnectionSuggestion, setPendingConnectionSuggestion] = useState(null);
+  const [pendingVlanSuggestion, setPendingVlanSuggestion] = useState(null);
+  const [securityReport, setSecurityReport] = useState(null);
+  const [showMerakiImport, setShowMerakiImport] = useState(false);
 
   // Helper functions
   const closeContextMenu = useCallback(() => {
@@ -85,6 +89,18 @@ export const useUIState = () => {
 
   const clearAiPendingDeviceBatch = useCallback(() => {
     setAiPendingDeviceBatch(null);
+  }, []);
+
+  const clearConnectionSuggestion = useCallback(() => {
+    setPendingConnectionSuggestion(null);
+  }, []);
+
+  const clearVlanSuggestion = useCallback(() => {
+    setPendingVlanSuggestion(null);
+  }, []);
+
+  const clearSecurityReport = useCallback(() => {
+    setSecurityReport(null);
   }, []);
 
   return {
@@ -148,7 +164,20 @@ export const useUIState = () => {
     clearAiPendingChange,
     aiPendingDeviceBatch,
     setAiPendingDeviceBatch,
-    clearAiPendingDeviceBatch
+    clearAiPendingDeviceBatch,
+
+    // New AI suggestion types
+    pendingConnectionSuggestion,
+    setPendingConnectionSuggestion,
+    clearConnectionSuggestion,
+    pendingVlanSuggestion,
+    setPendingVlanSuggestion,
+    clearVlanSuggestion,
+    securityReport,
+    setSecurityReport,
+    clearSecurityReport,
+    showMerakiImport,
+    setShowMerakiImport
   };
 };
 
