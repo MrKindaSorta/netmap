@@ -111,7 +111,8 @@ import {
   useSelectionState,
   useInteractionState,
   useModalState,
-  useUIState
+  useUIState,
+  useUnsavedChanges
 } from './hooks';
 
 // Import contexts
@@ -141,7 +142,6 @@ const NetworkTopologyEditor = () => {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Save state
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [currentVersion, setCurrentVersion] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -270,6 +270,22 @@ const NetworkTopologyEditor = () => {
     history,
     historyIdx
   } = useHistory(devices, connections, buildings);
+
+  // Unsaved changes detection hook - compares current state to saved snapshot
+  const {
+    hasUnsavedChanges,
+    markAsSaved,
+    clearSavedState
+  } = useUnsavedChanges(
+    devices,
+    connections,
+    vlans,
+    buildings,
+    circleScale,
+    deviceLabelScale,
+    portLabelScale,
+    currentNetwork
+  );
 
   const undo = useCallback(() => {
     const state = undoHistory();
@@ -1080,7 +1096,7 @@ const NetworkTopologyEditor = () => {
         }
 
         setCurrentVersion(result.version);
-        setHasUnsavedChanges(false);
+        markAsSaved();
       } catch (error) {
         console.error('Error loading network:', error);
         // On error, show welcome modal
@@ -1097,13 +1113,6 @@ const NetworkTopologyEditor = () => {
     window.addEventListener('openUpgradeModal', handleOpenUpgradeModal);
     return () => window.removeEventListener('openUpgradeModal', handleOpenUpgradeModal);
   }, []);
-
-  // Mark as changed when data changes
-  useEffect(() => {
-    if (currentNetwork) {
-      setHasUnsavedChanges(true);
-    }
-  }, [devices, connections, vlans, buildings, currentNetwork, circleScale, deviceLabelScale, portLabelScale]);
 
   // Manual save handler
   const handleSaveNetwork = useCallback(async () => {
@@ -1132,7 +1141,7 @@ const NetworkTopologyEditor = () => {
 
       // Update version and clear unsaved flag
       setCurrentVersion(result.version);
-      setHasUnsavedChanges(false);
+      markAsSaved();
     } catch (error) {
       console.error('Save failed:', error);
       if (error.message.includes('conflict')) {
@@ -1143,7 +1152,7 @@ const NetworkTopologyEditor = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [currentNetwork, hasUnsavedChanges, isReadOnly, isPremium, saveNetwork, devices, connections, vlans, buildings, currentVersion, circleScale, deviceLabelScale, portLabelScale]);
+  }, [currentNetwork, hasUnsavedChanges, isReadOnly, isPremium, saveNetwork, devices, connections, vlans, buildings, currentVersion, circleScale, deviceLabelScale, portLabelScale, markAsSaved]);
 
   // Use the extended useFiltering hook
   const { filteredDevs, filteredConns } = useFiltering(
@@ -1957,7 +1966,7 @@ const NetworkTopologyEditor = () => {
         setBuildings={setBuildings}
         setCurrentVersion={setCurrentVersion}
         hasUnsavedChanges={hasUnsavedChanges}
-        setHasUnsavedChanges={setHasUnsavedChanges}
+        markAsSaved={markAsSaved}
         networks={networks}
         currentNetwork={currentNetwork}
         searchQuery={searchQuery}
@@ -2352,7 +2361,7 @@ const NetworkTopologyEditor = () => {
               }
 
               setCurrentVersion(result.version);
-              setHasUnsavedChanges(false);
+              markAsSaved();
               setShowWelcomeModal(false);
             } catch (error) {
               console.error('Error loading newly created network:', error);

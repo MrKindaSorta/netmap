@@ -69,7 +69,7 @@ const MenuBar = ({
   setBuildings,
   setCurrentVersion,
   hasUnsavedChanges,
-  setHasUnsavedChanges,
+  markAsSaved,
   networks,
   currentNetwork,
 
@@ -190,7 +190,7 @@ const MenuBar = ({
           }
 
           setCurrentVersion(result.version);
-          setHasUnsavedChanges(false);
+          markAsSaved();
         }}
         currentData={{ devices, connections, vlans, buildings }}
         hasUnsavedChanges={hasUnsavedChanges}
