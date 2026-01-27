@@ -141,12 +141,37 @@ const AiChatPanel = ({
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
               </svg>
             </div>
-            <p className="text-sm mb-2" style={{ color: theme.text }}>
+            <p className="text-sm font-semibold mb-3" style={{ color: theme.text }}>
               Ask me anything about your network
             </p>
-            <p className="text-xs max-w-xs" style={{ color: theme.textMuted }}>
-              I can help analyze your topology, suggest optimizations, explain configurations, and answer networking questions.
-            </p>
+            <div className="text-xs text-left space-y-2 max-w-sm" style={{ color: theme.textMuted }}>
+              <div>
+                <span className="font-medium" style={{ color: theme.text }}>Network Building:</span>
+                <ul className="mt-1 space-y-0.5 ml-1">
+                  <li>• Parse and add devices from CDP/LLDP, Cisco IOS, Meraki, or tables</li>
+                  <li>• Create connections with ports, VLANs, and cable types</li>
+                  <li>• Import topology from Cisco Meraki Dashboard</li>
+                </ul>
+              </div>
+
+              <div>
+                <span className="font-medium" style={{ color: theme.text }}>Network Management:</span>
+                <ul className="mt-1 space-y-0.5 ml-1">
+                  <li>• Edit device properties (IP, MAC, firmware, hardware)</li>
+                  <li>• Modify or remove connections with impact analysis</li>
+                  <li>• Create VLANs and assign devices for segmentation</li>
+                </ul>
+              </div>
+
+              <div>
+                <span className="font-medium" style={{ color: theme.text }}>Analysis & Security:</span>
+                <ul className="mt-1 space-y-0.5 ml-1">
+                  <li>• Generate security audit reports with CVSS scores</li>
+                  <li>• Identify vulnerabilities and single points of failure</li>
+                  <li>• Suggest optimizations and explain configurations</li>
+                </ul>
+              </div>
+            </div>
           </div>
         )}
 
